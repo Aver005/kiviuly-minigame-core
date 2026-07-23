@@ -49,6 +49,15 @@ public abstract class Minigame
     public String displayName() {return id();}
 
     /**
+     * Право на админ-команды ЭТОЙ игры (по умолчанию {@code <id>.admin}). Даёт доступ
+     * только к её команде и её аренам. Общее {@code mg.admin} покрывает все мини-игры
+     * и платформенную команду {@code /mg}. Переопредели, если нужен короткий узел
+     * (например {@code sw.admin} вместо {@code skywars.admin}), и объяви его в
+     * {@code plugin.yml} своей игры.
+     */
+    public String adminPermission() {return id() + ".admin";}
+
+    /**
      * Паспорт игры для реестра ядра и карточки в селекторе хаба. По умолчанию выводится
      * из {@link #id()}/{@link #displayName()} без иконки и лимитов — переопредели для
      * богатой карточки (иконка, min/max, командный режим).

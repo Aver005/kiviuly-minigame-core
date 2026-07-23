@@ -56,6 +56,17 @@ public class MinigameCommand implements TabExecutor
         return owner == null ? plugin.arenas().ids() : plugin.arenas().ids(owner.id());
     }
 
+    /**
+     * Админ-доступ к ЭТОЙ команде: общее {@code mg.admin} даёт доступ ко всем мини-играм,
+     * право конкретной игры ({@code Minigame.adminPermission()}, напр. {@code sw.admin}) —
+     * только к её команде. Платформенная {@code /mg} требует именно {@code mg.admin}.
+     */
+    private boolean isAdmin(Player p)
+    {
+        if (p.hasPermission("mg.admin")) {return true;}
+        return owner != null && p.hasPermission(owner.adminPermission());
+    }
+
     /** Slug мини-игры среди аргументов (любой arg после id, совпадающий с id игры). */
     private String slugFrom(String[] args)
     {
@@ -157,7 +168,7 @@ public class MinigameCommand implements TabExecutor
             default -> {}
         }
 
-        if (!p.hasPermission("mg.admin")) {sendHelp(p); return true;}
+        if (!isAdmin(p)) {sendHelp(p); return true;}
 
         switch (sub)
         {
@@ -311,7 +322,7 @@ public class MinigameCommand implements TabExecutor
     private void sendHelp(Player p)
     {
         for (Component line : Msg.getList("help.player")) {p.sendMessage(line);}
-        if (p.hasPermission("mg.admin"))
+        if (isAdmin(p))
         {
             for (Component line : Msg.getList("help.admin")) {p.sendMessage(line);}
             if (owner != null) {for (Component line : owner.helpLines(p)) {p.sendMessage(line);}}
@@ -328,7 +339,7 @@ public class MinigameCommand implements TabExecutor
         if (args.length == 1)
         {
             List<String> subs = new ArrayList<>(PLAYER_SUBS);
-            if (p.hasPermission("mg.admin")) {subs.addAll(ADMIN_SUBS);}
+            if (isAdmin(p)) {subs.addAll(ADMIN_SUBS);}
             filter(subs, args[0], out);
             mergeGameCompletions(p, args, out);
             return out;
@@ -361,8 +372,7 @@ public class MinigameCommand implements TabExecutor
     /** Домешать таб-подсказки игро-специфичных подкоманд (только админам). */
     private void mergeGameCompletions(Player p, String[] args, List<String> out)
     {
-        if (!p.hasPermission("mg.admin")) {return;}
-        if (owner == null) {return;}
+        if (!isAdmin(p) || owner == null) {return;}
         for (String s : owner.tabComplete(p, args)) {if (!out.contains(s)) {out.add(s);}}
     }
 
