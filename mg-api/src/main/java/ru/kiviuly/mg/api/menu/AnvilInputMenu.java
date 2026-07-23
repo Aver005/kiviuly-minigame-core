@@ -1,5 +1,4 @@
-package ru.kiviuly.mg.menu;
-import ru.kiviuly.mg.api.menu.Menu;
+package ru.kiviuly.mg.api.menu;
 
 import java.util.function.Consumer;
 
@@ -11,7 +10,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.inventory.view.AnvilView;
-import ru.kiviuly.mg.MgCorePlugin;
+import org.bukkit.plugin.Plugin;
 import ru.kiviuly.mg.api.util.Items;
 import ru.kiviuly.mg.api.util.Msg;
 
@@ -25,11 +24,11 @@ public class AnvilInputMenu extends Menu
 {
     private static final int RESULT_SLOT = 2;
 
-    private final MgCorePlugin plugin;
+    private final Plugin plugin;
     private final String initial;
     private final Consumer<String> onConfirm;
 
-    public AnvilInputMenu(MgCorePlugin plugin, Component title, String initial, Consumer<String> onConfirm)
+    public AnvilInputMenu(Plugin plugin, Component title, String initial, Consumer<String> onConfirm)
     {
         super(InventoryType.ANVIL, title);
         this.plugin = plugin;

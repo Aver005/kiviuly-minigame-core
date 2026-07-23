@@ -12,7 +12,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import ru.kiviuly.mg.MgCorePlugin;
 import ru.kiviuly.mg.api.arena.Arena;
-import ru.kiviuly.mg.arena.SetupMarkers;
+import ru.kiviuly.mg.api.arena.SetupMarkers;
 import ru.kiviuly.mg.api.util.Items;
 import ru.kiviuly.mg.api.util.Msg;
 

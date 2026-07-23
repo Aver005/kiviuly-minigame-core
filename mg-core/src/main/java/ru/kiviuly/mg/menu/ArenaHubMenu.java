@@ -1,5 +1,6 @@
 package ru.kiviuly.mg.menu;
 import ru.kiviuly.mg.api.menu.Menu;
+import ru.kiviuly.mg.api.menu.AnvilInputMenu;
 
 import java.util.ArrayList;
 import java.util.List;

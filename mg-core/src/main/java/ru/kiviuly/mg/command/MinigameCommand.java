@@ -13,7 +13,7 @@ import org.bukkit.entity.Player;
 import ru.kiviuly.mg.MgCorePlugin;
 import ru.kiviuly.mg.api.arena.Arena;
 import ru.kiviuly.mg.arena.ArenaCheck;
-import ru.kiviuly.mg.arena.SetupMarkers;
+import ru.kiviuly.mg.api.arena.SetupMarkers;
 import ru.kiviuly.mg.game.GameSession;
 import ru.kiviuly.mg.menu.ArenaHubMenu;
 import ru.kiviuly.mg.menu.ArenaSelectMenu;

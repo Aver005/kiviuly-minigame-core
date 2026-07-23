@@ -188,7 +188,9 @@ setup:
   busy: "<red>Арена <aqua><arena><red> сейчас в матче."
   spawn-added: "<green>Спавн (<x>, <y>, <z>) добавлен. Всего: <yellow><n>."
   spawn-removed: "<yellow>Спавн (<x>, <y>, <z>) убран. Осталось: <white><n>."
-  not-a-point: "<red>Здесь нет точки спавна (<x>, <y>, <z>)."
+  not-a-point: "<red>Здесь нет точки (<x>, <y>, <z>)."
+  spot-added: "<green>Точка «<group>» <gray>(<tag>)<green> (<x>, <y>, <z>) добавлена. Всего: <yellow><n>."
+  spot-removed: "<yellow>Точка «<group>» (<x>, <y>, <z>) убрана. Осталось: <white><n>."
 
 marker-types:
   spawn: "спавн"

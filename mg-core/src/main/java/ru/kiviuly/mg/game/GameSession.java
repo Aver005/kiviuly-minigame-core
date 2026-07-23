@@ -35,7 +35,7 @@ import ru.kiviuly.mg.api.game.MatchPlayer;
 import ru.kiviuly.mg.api.game.MatchResult;
 import ru.kiviuly.mg.api.game.Minigame;
 import ru.kiviuly.mg.api.game.Team;
-import ru.kiviuly.mg.arena.SetupMarkers;
+import ru.kiviuly.mg.api.arena.SetupMarkers;
 import ru.kiviuly.mg.player.PlayerSnapshot;
 import ru.kiviuly.mg.ui.GameBossBar;
 import ru.kiviuly.mg.ui.GameScoreboard;

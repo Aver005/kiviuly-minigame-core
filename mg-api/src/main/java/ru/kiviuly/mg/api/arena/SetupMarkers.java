@@ -1,4 +1,4 @@
-package ru.kiviuly.mg.arena;
+package ru.kiviuly.mg.api.arena;
 
 import ru.kiviuly.mg.api.arena.Arena;
 
