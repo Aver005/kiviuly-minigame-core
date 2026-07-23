@@ -1,8 +1,13 @@
 package ru.kiviuly.mg;
 
 import java.sql.SQLException;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
+import org.bukkit.command.TabExecutor;
 import org.bukkit.plugin.ServicePriority;
+import ru.kiviuly.mg.api.arena.Arena;
 import org.bukkit.plugin.java.JavaPlugin;
 import ru.kiviuly.mg.api.MgCore;
 import ru.kiviuly.mg.api.game.Minigame;
@@ -35,7 +40,8 @@ public final class MgCorePlugin extends JavaPlugin implements MgCore
     private ArenaManager arenaManager;
     private StatsRepository statsRepository;
     private final TransportService transport = new LocalTransport();
-    private Minigame game;
+    /** Зарегистрированные игры по {@code Minigame.id()} (порядок регистрации сохраняется). */
+    private final Map<String, Minigame> games = new LinkedHashMap<>();
 
     @Override
     public void onEnable()
@@ -79,8 +85,8 @@ public final class MgCorePlugin extends JavaPlugin implements MgCore
             getLogger().info("MgCore: arenas loaded: " + arenaManager.all().size());
         });
 
-        getLogger().info("MgCore enabled, game: " + game.id());
-        DebugLog.log(Cat.ADMIN, "plugin enable game=%s", game.id());
+        getLogger().info("MgCore enabled, games: " + games.keySet());
+        DebugLog.log(Cat.ADMIN, "plugin enable games=%s", games.keySet());
     }
 
     @Override
@@ -103,7 +109,7 @@ public final class MgCorePlugin extends JavaPlugin implements MgCore
         Msg.reload();
         DebugLog.reload();
         arenaManager.loadAll();
-        if (game != null) {game.onReload();}
+        for (Minigame g : games.values()) {g.onReload();}
     }
 
     // ===== MgCore (фасад для игровых плагинов) =====
@@ -111,9 +117,36 @@ public final class MgCorePlugin extends JavaPlugin implements MgCore
     @Override
     public void register(Minigame game)
     {
-        this.game = game;
+        games.put(game.id(), game);
         getLogger().info("MgCore: registered game '" + game.id() + "'");
     }
+
+    /** Обработчик команды, привязанный к игре: её арены + её подкоманды. */
+    @Override
+    public TabExecutor commandFor(Minigame game) {return new MinigameCommand(this, game);}
+
+    /**
+     * Игра-владелец арены. Если владелец не проставлен (арена создана платформенной
+     * командой), берём единственную неслужебную игру — чтобы одно-игровой сервер
+     * работал без ручной привязки.
+     */
+    public Minigame gameFor(Arena arena)
+    {
+        if (arena == null) {return null;}
+        Minigame byId = arena.getGameId() == null ? null : games.get(arena.getGameId());
+        if (byId != null) {return byId;}
+        Minigame single = null;
+        for (Minigame g : games.values())
+        {
+            if ("template".equals(g.id())) {continue;}
+            if (single != null) {return null;} // игр несколько — владельца надо задать явно
+            single = g;
+        }
+        return single != null ? single : games.get("template");
+    }
+
+    public Minigame gameById(String id) {return id == null ? null : games.get(id);}
+    public Collection<Minigame> games() {return games.values();}
 
     // Возвращают КОНКРЕТНЫЕ типы (ковариантно переопределяют MgCore.arenas()/stats()):
     // внутренний код ядра пользуется методами сверх контракта (bind/create/…).
@@ -121,6 +154,4 @@ public final class MgCorePlugin extends JavaPlugin implements MgCore
     @Override public StatsRepository stats() {return statsRepository;}
     @Override public TransportService transport() {return transport;}
 
-    /** Зарегистрированная игра (или null). */
-    public Minigame game() {return game;}
 }

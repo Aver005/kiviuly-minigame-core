@@ -1,6 +1,7 @@
 package ru.kiviuly.mg.api.arena;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 
 import org.bukkit.entity.Player;
@@ -13,17 +14,36 @@ import ru.kiviuly.mg.api.game.Match;
  */
 public interface ArenaService
 {
-    /** Арена по id (регистронезависимо) или null. */
+    /**
+     * Арена по id, ЕСЛИ он однозначен во всех играх. При конфликте (одинаковый id в
+     * разных мини-играх) вернёт null — используй {@link #get(String, String)} или
+     * {@link #findById(String)}.
+     */
     Arena get(String id);
 
-    /** Есть ли арена с таким id. */
+    /** Арена конкретной игры (точное разрешение пары «игра + id»). */
+    Arena get(String gameId, String arenaId);
+
+    /** Все арены с таким id во всех играх (пусто / одна / несколько при конфликте). */
+    List<Arena> findById(String arenaId);
+
+    /** Есть ли арена с таким id хоть в одной игре. */
     boolean exists(String id);
 
-    /** Все арены. */
+    /** Есть ли такая арена у конкретной игры. */
+    boolean exists(String gameId, String arenaId);
+
+    /** Все арены (всех игр). */
     Collection<Arena> all();
 
     /** Идентификаторы всех арен. */
     Set<String> ids();
+
+    /** Арены конкретной игры (по {@code Minigame.id()}). */
+    Collection<Arena> all(String gameId);
+
+    /** Идентификаторы арен конкретной игры. */
+    Set<String> ids(String gameId);
 
     /** Сохранить арену на диск (после правок игро-специфичной разметки/настроек). */
     void save(Arena arena);

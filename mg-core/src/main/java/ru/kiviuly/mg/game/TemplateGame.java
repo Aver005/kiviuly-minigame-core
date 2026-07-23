@@ -23,7 +23,7 @@ import ru.kiviuly.mg.api.util.Msg;
  */
 public class TemplateGame extends Minigame
 {
-    public TemplateGame(MgCorePlugin plugin) {super(plugin);}
+    public TemplateGame(MgCorePlugin plugin) {super(plugin, plugin);}
 
     @Override
     public String id() {return "template";}

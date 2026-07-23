@@ -1,5 +1,6 @@
 package ru.kiviuly.mg.api;
 
+import org.bukkit.command.TabExecutor;
 import ru.kiviuly.mg.api.arena.ArenaService;
 import ru.kiviuly.mg.api.game.Minigame;
 import ru.kiviuly.mg.api.net.TransportService;
@@ -16,6 +17,18 @@ public interface MgCore
 {
     /** Зарегистрировать игру (её {@link Minigame}). Вызывать в onEnable игрового плагина. */
     void register(Minigame game);
+
+    /**
+     * Обработчик команды, ПРИВЯЗАННЫЙ к этой игре: видит только её арены и делегирует
+     * незнакомые подкоманды только ей. Игра объявляет команду в своём plugin.yml и
+     * ставит его исполнителем:
+     * <pre>{@code
+     * var cmd = getCommand("sw");
+     * TabExecutor h = core.commandFor(game);
+     * cmd.setExecutor(h); cmd.setTabCompleter(h);
+     * }</pre>
+     */
+    TabExecutor commandFor(Minigame game);
 
     /** Реестр арен и вход/выход игроков. */
     ArenaService arenas();

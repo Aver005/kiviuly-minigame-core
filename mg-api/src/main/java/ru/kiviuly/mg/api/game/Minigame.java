@@ -1,10 +1,12 @@
 package ru.kiviuly.mg.api.game;
 
+import java.io.File;
 import java.util.List;
 import java.util.UUID;
 
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 import ru.kiviuly.mg.api.MgCore;
 import ru.kiviuly.mg.api.arena.Arena;
 
@@ -21,8 +23,24 @@ import ru.kiviuly.mg.api.arena.Arena;
 public abstract class Minigame
 {
     protected final MgCore core;
+    /** Плагин-владелец игры: его папка хранит арены и игро-специфичные данные. */
+    protected final Plugin plugin;
 
-    protected Minigame(MgCore core) {this.core = core;}
+    protected Minigame(MgCore core, Plugin plugin)
+    {
+        this.core = core;
+        this.plugin = plugin;
+    }
+
+    /** Плагин, которому принадлежит эта игра. */
+    public Plugin plugin() {return plugin;}
+
+    /**
+     * Папка данных игры ({@code plugins/<ИграПлагин>/}). Ядро хранит арены этой игры
+     * в {@code <папка игры>/arenas/}, а не у себя — каждая мини-игра владеет своими
+     * конфигами, аренами и игро-специфичными данными.
+     */
+    public File dataFolder() {return plugin.getDataFolder();}
 
     /** Уникальный id игры (например, "spleef"). */
     public abstract String id();

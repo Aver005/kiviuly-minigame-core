@@ -1,9 +1,12 @@
 package ru.kiviuly.mg.arena;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -12,82 +15,240 @@ import org.bukkit.entity.Player;
 import ru.kiviuly.mg.MgCorePlugin;
 import ru.kiviuly.mg.api.arena.Arena;
 import ru.kiviuly.mg.api.arena.ArenaService;
+import ru.kiviuly.mg.api.game.Minigame;
+import ru.kiviuly.mg.api.util.Msg;
 import ru.kiviuly.mg.game.GameSession;
 import ru.kiviuly.mg.player.PlayerSnapshot;
-import ru.kiviuly.mg.api.util.Msg;
 
 /**
- * Реестр арен (arenas/&lt;id&gt;.yml) + карта «игрок → активная сессия».
- * Точка входа игрока в игру: {@link #join}. Сессии создаются лениво на первый
- * вход и удерживаются в {@link Arena#getSession()}; карту игрок→сессия
- * поддерживают {@link #bind}/{@link #unbind} (их зовёт {@link GameSession}).
+ * Реестр арен + карта «игрок → активная сессия».
+ *
+ * <p>Арена принадлежит игре, поэтому ключ — ПАРА (игра, id): одинаковые id в разных
+ * мини-играх допустимы. На диске это раскладка {@code arenas/<игра>/<ID>.yml}
+ * (арены без владельца — в {@code arenas/_unowned/}). Старые плоские файлы
+ * {@code arenas/<ID>.yml} подхватываются и переносятся в новую раскладку.</p>
+ *
+ * <p>Точка входа игрока: {@link #join}. Сессии создаются лениво и живут в
+ * {@link Arena#getSession()}; карту игрок→сессия ведут {@link #bind}/{@link #unbind}.</p>
  */
 public class ArenaManager implements ArenaService
 {
+    /** Папка для арен без игры-владельца. */
+    private static final String UNOWNED = "_unowned";
+
     private final MgCorePlugin plugin;
-    private final Map<String, Arena> arenas = new LinkedHashMap<>();
+    /** игра -> (id арены -> арена); порядок регистрации сохраняется. */
+    private final Map<String, Map<String, Arena>> byGame = new LinkedHashMap<>();
     private final Map<UUID, GameSession> playerSessions = new HashMap<>();
 
     public ArenaManager(MgCorePlugin plugin) {this.plugin = plugin;}
 
-    private File dir()
+    private static String key(String gameId) {return gameId == null || gameId.isBlank() ? UNOWNED : gameId;}
+
+    private static String key(Arena arena) {return key(arena.getGameId());}
+
+    /** Папка арен ядра — только для арен без игры-владельца (и legacy-файлов). */
+    private File root()
     {
         File dir = new File(plugin.getDataFolder(), "arenas");
         if (!dir.exists()) {dir.mkdirs();}
         return dir;
     }
 
-    private File fileOf(String id) {return new File(dir(), id + ".yml");}
+    /**
+     * Папка арен игры: {@code plugins/<ИграПлагин>/arenas/}. Каждая мини-игра владеет
+     * своими данными; в папке ядра лежат только арены без владельца.
+     */
+    private File dirOf(String gameId)
+    {
+        Minigame game = plugin.gameById(gameId);
+        File dir = game != null
+            ? new File(game.dataFolder(), "arenas")
+            : new File(root(), UNOWNED);
+        if (!dir.exists()) {dir.mkdirs();}
+        return dir;
+    }
+
+    private File fileOf(Arena arena) {return new File(dirOf(arena.getGameId()), arena.getId() + ".yml");}
+
+    // ===== загрузка / сохранение =====
 
     public void loadAll()
     {
-        arenas.clear();
-        File[] files = dir().listFiles((d, name) -> name.toLowerCase().endsWith(".yml"));
-        if (files == null) {return;}
-        for (File f : files)
+        byGame.clear();
+
+        // 1. арены каждой зарегистрированной игры — из ЕЁ папки: plugins/<Игра>/arenas/
+        for (Minigame game : plugin.games())
         {
-            String id = f.getName().substring(0, f.getName().length() - 4).toUpperCase();
-            try
+            loadFrom(new File(game.dataFolder(), "arenas"), game.id());
+        }
+
+        // 2. арены без владельца — в папке ядра
+        loadFrom(new File(root(), UNOWNED), null);
+
+        // 3. legacy: плоские arenas/<ID>.yml в папке ядра — загрузить и перенести
+        //    в папку игры-владельца (или в _unowned).
+        File[] flat = root().listFiles((d, name) -> name.toLowerCase().endsWith(".yml"));
+        if (flat != null)
+        {
+            for (File f : flat)
             {
-                arenas.put(id, Arena.load(id, f));
-            }
-            catch (Exception e)
-            {
-                // Мир арены ещё/уже не загружен (unknown world при десериализации Location) и т.п. —
-                // пропускаем эту арену, но НЕ роняем плагин. Подхватится по /mg reload, когда мир готов.
-                plugin.getLogger().warning("Skipped arena " + id + " (load failed): " + e.getMessage());
+                Arena a = loadFile(f, arenaIdOf(f));
+                if (a == null) {continue;}
+                index(a);
+                save(a);                 // запишется уже в папку игры
+                if (f.delete()) {plugin.getLogger().info("Arena " + a.getId() + " moved to " + key(a) + " folder");}
             }
         }
     }
 
-    public void save(Arena arena) {arena.save(fileOf(arena.getId()));}
+    /** Загрузить все арены из папки, проставив владельца {@code gameId} (null = без владельца). */
+    private void loadFrom(File dir, String gameId)
+    {
+        File[] files = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".yml"));
+        if (files == null) {return;}
+        for (File f : files)
+        {
+            Arena a = loadFile(f, arenaIdOf(f));
+            if (a == null) {continue;}
+            // Владельца задаёт папка, в которой лежит файл (файл может её не знать).
+            a.setGameId(gameId);
+            index(a);
+        }
+    }
 
-    public void saveAll() {for (Arena a : arenas.values()) {save(a);}}
+    private static String arenaIdOf(File f)
+    {
+        return f.getName().substring(0, f.getName().length() - 4).toUpperCase();
+    }
 
-    public Arena create(String id, String worldName)
+    private Arena loadFile(File f, String id)
+    {
+        try {return Arena.load(id, f);}
+        catch (Exception e)
+        {
+            // Мир арены ещё не загружен (unknown world при десериализации Location) и т.п. —
+            // пропускаем арену, но НЕ роняем плагин. Подхватится по /mg reload.
+            plugin.getLogger().warning("Skipped arena " + id + " (load failed): " + e.getMessage());
+            return null;
+        }
+    }
+
+    private void index(Arena a)
+    {
+        byGame.computeIfAbsent(key(a), k -> new LinkedHashMap<>()).put(a.getId(), a);
+    }
+
+    public void save(Arena arena) {arena.save(fileOf(arena));}
+
+    public void saveAll() {for (Arena a : all()) {save(a);}}
+
+    // ===== создание / удаление =====
+
+    public Arena create(String id, String worldName) {return create(id, worldName, null);}
+
+    /** Создать арену, закрепив её за игрой {@code gameId} (null = без владельца). */
+    public Arena create(String id, String worldName, String gameId)
     {
         Arena arena = Arena.create(id, worldName, plugin.getConfig().getConfigurationSection("arena-defaults"));
-        arenas.put(id, arena);
+        arena.setGameId(gameId);
+        index(arena);
         save(arena);
-        if (plugin.game() != null) {plugin.game().onArenaCreated(arena);} // материализуем игро-конфиг с дефолтами
+        Minigame owner = plugin.gameFor(arena);
+        if (owner != null) {owner.onArenaCreated(arena);} // материализуем игро-конфиг с дефолтами
         return arena;
     }
 
-    public boolean delete(String id)
+    /** Удалить арену конкретной игры. */
+    public boolean delete(String gameId, String id)
     {
-        Arena arena = arenas.remove(id);
+        Map<String, Arena> map = byGame.get(key(gameId));
+        Arena arena = map == null || id == null ? null : map.remove(id.toUpperCase());
         if (arena == null) {return false;}
         if (arena.getSession() != null) {((GameSession) arena.getSession()).forceCleanup();}
-        File f = fileOf(id);
+        File f = fileOf(arena);
         if (f.exists()) {f.delete();}
-        if (plugin.game() != null) {plugin.game().onArenaRemoved(arena.getId());}
+        Minigame owner = plugin.gameFor(arena);
+        if (owner != null) {owner.onArenaRemoved(arena.getId());}
         return true;
     }
 
-    public Arena get(String id) {return id == null ? null : arenas.get(id.toUpperCase());}
-    public boolean exists(String id) {return id != null && arenas.containsKey(id.toUpperCase());}
-    public Collection<Arena> all() {return arenas.values();}
-    public Set<String> ids() {return arenas.keySet();}
+    /** Удалить арену по id, если он однозначен во всех играх. */
+    public boolean delete(String id)
+    {
+        Arena a = get(id);
+        return a != null && delete(a.getGameId(), a.getId());
+    }
+
+    // ===== поиск =====
+
+    /** Арена конкретной игры (точное разрешение). */
+    @Override
+    public Arena get(String gameId, String arenaId)
+    {
+        Map<String, Arena> map = byGame.get(key(gameId));
+        return map == null || arenaId == null ? null : map.get(arenaId.toUpperCase());
+    }
+
+    /** Все арены с таким id во всех играх (для разрешения неоднозначности). */
+    @Override
+    public List<Arena> findById(String arenaId)
+    {
+        List<Arena> out = new ArrayList<>();
+        if (arenaId == null) {return out;}
+        String needle = arenaId.toUpperCase();
+        for (Map<String, Arena> map : byGame.values())
+        {
+            Arena a = map.get(needle);
+            if (a != null) {out.add(a);}
+        }
+        return out;
+    }
+
+    /** Арена по id, если он однозначен; при конфликте — null (нужен slug игры). */
+    @Override
+    public Arena get(String id)
+    {
+        List<Arena> found = findById(id);
+        return found.size() == 1 ? found.get(0) : null;
+    }
+
+    @Override
+    public boolean exists(String id) {return !findById(id).isEmpty();}
+
+    @Override
+    public boolean exists(String gameId, String arenaId) {return get(gameId, arenaId) != null;}
+
+    @Override
+    public Collection<Arena> all()
+    {
+        List<Arena> out = new ArrayList<>();
+        for (Map<String, Arena> map : byGame.values()) {out.addAll(map.values());}
+        return out;
+    }
+
+    @Override
+    public Set<String> ids()
+    {
+        Set<String> out = new LinkedHashSet<>();
+        for (Arena a : all()) {out.add(a.getId());}
+        return out;
+    }
+
+    @Override
+    public Collection<Arena> all(String gameId)
+    {
+        Map<String, Arena> map = byGame.get(key(gameId));
+        return map == null ? List.of() : new ArrayList<>(map.values());
+    }
+
+    @Override
+    public Set<String> ids(String gameId)
+    {
+        Set<String> out = new LinkedHashSet<>();
+        for (Arena a : all(gameId)) {out.add(a.getId());}
+        return out;
+    }
 
     // ===== игрок ↔ сессия =====
 
@@ -119,7 +280,9 @@ public class ArenaManager implements ArenaService
         GameSession session = (GameSession) arena.getSession();
         if (session == null)
         {
-            session = new GameSession(plugin, arena, plugin.game());
+            Minigame owner = plugin.gameFor(arena);
+            if (owner == null) {Msg.send(p, "game.arena-not-ready", Msg.ph("arena", arena.getId())); return;}
+            session = new GameSession(plugin, arena, owner);
             arena.setSession(session);
         }
         if (!session.acceptsPlayers())
@@ -141,7 +304,7 @@ public class ArenaManager implements ArenaService
     /** Остановить все сессии (onDisable/reload). */
     public void stopAll()
     {
-        for (Arena a : arenas.values())
+        for (Arena a : all())
         {
             if (a.getSession() != null) {((GameSession) a.getSession()).forceCleanup();}
         }

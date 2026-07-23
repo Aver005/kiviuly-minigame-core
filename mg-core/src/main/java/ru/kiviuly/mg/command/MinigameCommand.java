@@ -1,6 +1,8 @@
 package ru.kiviuly.mg.command;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Set;
 import java.util.List;
 import java.util.Locale;
 
@@ -12,6 +14,7 @@ import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 import ru.kiviuly.mg.MgCorePlugin;
 import ru.kiviuly.mg.api.arena.Arena;
+import ru.kiviuly.mg.api.game.Minigame;
 import ru.kiviuly.mg.arena.ArenaCheck;
 import ru.kiviuly.mg.api.arena.SetupMarkers;
 import ru.kiviuly.mg.game.GameSession;
@@ -31,8 +34,92 @@ public class MinigameCommand implements TabExecutor
         "minplayers", "maxplayers", "lobbycountdown", "countdownfull", "duration");
 
     private final MgCorePlugin plugin;
+    /** Игра-владелец команды; null = платформенная команда (/mg) поверх всех арен. */
+    private final Minigame owner;
 
-    public MinigameCommand(MgCorePlugin plugin) {this.plugin = plugin;}
+    public MinigameCommand(MgCorePlugin plugin) {this(plugin, null);}
+
+    public MinigameCommand(MgCorePlugin plugin, Minigame owner)
+    {
+        this.plugin = plugin;
+        this.owner = owner;
+    }
+
+    /** Арены в области видимости команды: свои для игровой, все — для платформенной. */
+    private Collection<Arena> scopedArenas()
+    {
+        return owner == null ? plugin.arenas().all() : plugin.arenas().all(owner.id());
+    }
+
+    private Set<String> scopedIds()
+    {
+        return owner == null ? plugin.arenas().ids() : plugin.arenas().ids(owner.id());
+    }
+
+    /** Slug мини-игры среди аргументов (любой arg после id, совпадающий с id игры). */
+    private String slugFrom(String[] args)
+    {
+        for (int i = 2; i < args.length; i++)
+        {
+            for (Minigame g : plugin.games())
+            {
+                if (g.id().equalsIgnoreCase(args[i])) {return g.id();}
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Разрешить арену по id в области видимости команды. Сообщения об ошибке шлёт сам
+     * (null = обработку прекратить).
+     *
+     * <p>Игровая команда видит только свои арены. Платформенная (/mg) — все; при
+     * конфликте id между мини-играми требует slug: {@code /mg enable <ID> <slug>}.</p>
+     */
+    private Arena resolveArena(Player p, String id, String[] args)
+    {
+        if (owner != null)
+        {
+            Arena a = plugin.arenas().get(owner.id(), id);
+            if (a == null) {Msg.send(p, "errors.arena-not-found", Msg.ph("arena", id));}
+            return a;
+        }
+        List<Arena> found = plugin.arenas().findById(id);
+        if (found.isEmpty()) {Msg.send(p, "errors.arena-not-found", Msg.ph("arena", id)); return null;}
+        String slug = slugFrom(args);
+        if (slug != null)
+        {
+            for (Arena a : found) {if (slug.equals(a.getGameId())) {return a;}}
+            Msg.send(p, "errors.arena-not-found-in-game", Msg.ph("arena", id), Msg.ph("game", slug));
+            return null;
+        }
+        if (found.size() == 1) {return found.get(0);}
+        List<String> gameIds = new ArrayList<>();
+        for (Arena a : found) {gameIds.add(a.getGameId() == null ? "?" : a.getGameId());}
+        Msg.send(p, "errors.arena-ambiguous", Msg.ph("arena", id), Msg.ph("games", String.join(", ", gameIds)));
+        return null;
+    }
+
+    /** Игра, которой принадлежит создаваемая арена (для /mg — из slug либо единственная). */
+    private String targetGameId(Player p, String[] args)
+    {
+        if (owner != null) {return owner.id();}
+        String slug = slugFrom(args);
+        if (slug != null) {return slug;}
+        String single = null;
+        for (Minigame g : plugin.games())
+        {
+            if ("template".equals(g.id())) {continue;}
+            if (single != null)
+            {
+                Msg.send(p, "errors.game-slug-required");
+                return null;
+            }
+            single = g.id();
+        }
+        if (single == null) {Msg.send(p, "errors.game-slug-required");}
+        return single;
+    }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args)
@@ -47,8 +134,8 @@ public class MinigameCommand implements TabExecutor
             case "join" ->
             {
                 if (args.length < 2) {new ArenaSelectMenu(plugin).open(p); return true;}
-                Arena arena = plugin.arenas().get(args[1]);
-                if (arena == null) {Msg.send(p, "errors.arena-not-found", Msg.ph("arena", args[1])); return true;}
+                Arena arena = resolveArena(p, args[1].toUpperCase(Locale.ROOT), args);
+                if (arena == null) {return true;}
                 plugin.arenas().join(p, arena);
                 return true;
             }
@@ -89,7 +176,7 @@ public class MinigameCommand implements TabExecutor
 
         // Игро-специфичные подкоманды (setcenter/setradius/... в MgCore) — до
         // ядровой логики, требующей арену. Игра сама парсит и валидирует свои аргументы.
-        if (plugin.game().onCommand(p, sub, args)) {return true;}
+        if (owner != null && owner.onCommand(p, sub, args)) {return true;}
 
         if (args.length < 2) {Msg.send(p, "errors.need-args"); return true;}
         String id = args[1].toUpperCase(Locale.ROOT);
@@ -98,8 +185,10 @@ public class MinigameCommand implements TabExecutor
         {
             case "create" ->
             {
-                if (plugin.arenas().exists(id)) {Msg.send(p, "errors.arena-exists", Msg.ph("arena", id)); return true;}
-                Arena arena = plugin.arenas().create(id, p.getWorld().getName());
+                String target = targetGameId(p, args);
+                if (target == null) {return true;}
+                if (plugin.arenas().exists(target, id)) {Msg.send(p, "errors.arena-exists", Msg.ph("arena", id)); return true;}
+                Arena arena = plugin.arenas().create(id, p.getWorld().getName(), target);
                 arena.setLobby(p.getLocation());
                 plugin.arenas().save(arena);
                 Msg.send(p, "admin.created", Msg.ph("arena", id));
@@ -108,16 +197,17 @@ public class MinigameCommand implements TabExecutor
             }
             case "remove" ->
             {
-                if (!plugin.arenas().exists(id)) {Msg.send(p, "errors.arena-not-found", Msg.ph("arena", id)); return true;}
-                plugin.arenas().delete(id);
+                Arena victim = resolveArena(p, id, args);
+                if (victim == null) {return true;}
+                plugin.arenas().delete(victim.getGameId(), victim.getId());
                 Msg.send(p, "admin.removed", Msg.ph("arena", id));
                 return true;
             }
             default -> {}
         }
 
-        Arena arena = plugin.arenas().get(id);
-        if (arena == null) {Msg.send(p, "errors.arena-not-found", Msg.ph("arena", id)); return true;}
+        Arena arena = resolveArena(p, id, args);
+        if (arena == null) {return true;}
 
         switch (sub)
         {
@@ -207,12 +297,13 @@ public class MinigameCommand implements TabExecutor
     private void list(Player p)
     {
         Msg.send(p, "admin.list-header");
-        for (Arena a : plugin.arenas().all())
+        for (Arena a : scopedArenas())
         {
             String statusKey = !a.isEnabled() ? "admin.list-disabled"
                 : a.getSession() == null ? "admin.list-idle" : "admin.list-running";
             int current = a.getSession() == null ? 0 : a.getSession().players().size();
-            Msg.send(p, "admin.list-entry", Msg.ph("arena", a.getId()),
+            String label = owner != null || a.getGameId() == null ? a.getId() : a.getGameId() + ":" + a.getId();
+            Msg.send(p, "admin.list-entry", Msg.ph("arena", label),
                 Msg.phC("status", Msg.get(statusKey)), Msg.ph("current", current), Msg.ph("max", a.getMaxPlayers()));
         }
     }
@@ -223,7 +314,7 @@ public class MinigameCommand implements TabExecutor
         if (p.hasPermission("mg.admin"))
         {
             for (Component line : Msg.getList("help.admin")) {p.sendMessage(line);}
-            for (Component line : plugin.game().helpLines(p)) {p.sendMessage(line);}
+            if (owner != null) {for (Component line : owner.helpLines(p)) {p.sendMessage(line);}}
         }
     }
 
@@ -248,7 +339,7 @@ public class MinigameCommand implements TabExecutor
             switch (sub)
             {
                 case "join", "remove", "enable", "disable", "gui", "setlobby", "addspawn", "set", "check", "start", "stop" ->
-                    filter(new ArrayList<>(plugin.arenas().ids()), args[1], out);
+                    filter(new ArrayList<>(scopedIds()), args[1], out);
                 case "debuglog" -> filter(List.of("on", "off", "save", "clear", "status"), args[1], out);
                 default -> {}
             }
@@ -256,6 +347,12 @@ public class MinigameCommand implements TabExecutor
         else if (args.length == 3 && sub.equals("set"))
         {
             filter(SET_KEYS, args[2], out);
+        }
+        else if (args.length == 3 && owner == null)
+        {
+            List<String> slugs = new ArrayList<>();
+            for (Minigame g : plugin.games()) {slugs.add(g.id());}
+            filter(slugs, args[2], out);
         }
         mergeGameCompletions(p, args, out);
         return out;
@@ -265,7 +362,8 @@ public class MinigameCommand implements TabExecutor
     private void mergeGameCompletions(Player p, String[] args, List<String> out)
     {
         if (!p.hasPermission("mg.admin")) {return;}
-        for (String s : plugin.game().tabComplete(p, args)) {if (!out.contains(s)) {out.add(s);}}
+        if (owner == null) {return;}
+        for (String s : owner.tabComplete(p, args)) {if (!out.contains(s)) {out.add(s);}}
     }
 
     private void filter(List<String> options, String prefix, List<String> out)

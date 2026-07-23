@@ -28,6 +28,9 @@ public class Arena
 {
     private final String id;
 
+    /** id игры-владельца ({@code Minigame.id()}); null = ничья (видна только платформенной команде). */
+    private String gameId;
+
     private String displayNameRaw;
     private String descriptionRaw = "";
     private String worldName;
@@ -71,6 +74,7 @@ public class Arena
     {
         YamlConfiguration cfg = YamlConfiguration.loadConfiguration(file);
         Arena a = new Arena(id);
+        a.gameId = cfg.getString("game");
         a.displayNameRaw = cfg.getString("display-name", id);
         a.descriptionRaw = cfg.getString("description", "");
         a.worldName = cfg.getString("world");
@@ -112,6 +116,7 @@ public class Arena
     public void save(File file)
     {
         YamlConfiguration cfg = new YamlConfiguration();
+        cfg.set("game", gameId);
         cfg.set("display-name", displayNameRaw);
         cfg.set("description", descriptionRaw);
         cfg.set("world", worldName);
@@ -147,6 +152,9 @@ public class Arena
     // ===== accessors =====
 
     public String getId() {return id;}
+    /** Игра-владелец арены: её команда видит арену, её правила ведут матч. */
+    public String getGameId() {return gameId;}
+    public void setGameId(String v) {this.gameId = v;}
     public String getDisplayNameRaw() {return displayNameRaw;}
     public void setDisplayNameRaw(String v) {this.displayNameRaw = v;}
     public String getDescriptionRaw() {return descriptionRaw;}

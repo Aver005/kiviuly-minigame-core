@@ -88,6 +88,18 @@ public abstract class Menu implements InventoryHolder
         }
     }
 
+    /** Заполнить только рамку (первый/последний ряд и боковые колонки) пустые слоты. */
+    protected void fillBorder(Material material)
+    {
+        int size = inventory.getSize();
+        ItemStack filler = Items.filler(material);
+        for (int i = 0; i < size; i++)
+        {
+            boolean border = i < 9 || i >= size - 9 || i % 9 == 0 || (i + 1) % 9 == 0;
+            if (border && inventory.getItem(i) == null) {inventory.setItem(i, filler);}
+        }
+    }
+
     protected void fillAll(Material material)
     {
         ItemStack filler = Items.filler(material);

@@ -12,6 +12,9 @@ menu:
 errors:
   world-not-loaded: "<red>Мир арены не загружен."
   arena-not-found: "<red>Арены <aqua><arena><red> нет."
+  arena-not-found-in-game: "<red>Арены <aqua><arena><red> нет в мини-игре <yellow><game><red>."
+  arena-ambiguous: "<red>Арена <aqua><arena><red> есть в нескольких мини-играх: <yellow><games><red>. Укажи нужную: <white>/mg <sub> <arena> <slug>"
+  game-slug-required: "<red>Укажи мини-игру (slug) — их зарегистрировано несколько."
   arena-exists: "<red>Арена <aqua><arena><red> уже существует."
   need-args: "<red>Недостаточно аргументов."
   not-a-number: "<red>Нужно число."
