@@ -324,7 +324,7 @@ public class GameSession implements Match
     }
 
     /** Игрок выбыл (умер/сдался): в спектаторы, хук игры, проверка конца. */
-    public void eliminate(Player p, boolean died)
+    @Override public void eliminate(Player p, boolean died)
     {
         MatchPlayer mp = players.get(p.getUniqueId());
         if (mp == null || !mp.isAlive()) {return;}

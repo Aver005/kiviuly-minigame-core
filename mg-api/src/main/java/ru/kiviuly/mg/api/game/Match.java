@@ -85,6 +85,9 @@ public interface Match
     /** Зарегистрировать заспавненную сущность — удалится после матча. */
     void trackEntity(Entity entity);
 
+    /** Выбить игрока из матча в спектаторы (died=true — как гибель). Игра может звать сама. */
+    void eliminate(Player player, boolean died);
+
     /** Дефолтное условие победы: последний выживший, или ничья по истечении времени. */
     MatchResult defaultResult();
 
