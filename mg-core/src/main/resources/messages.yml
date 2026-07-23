@@ -1,0 +1,410 @@
+# ============================================================================
+#  MgCore — тексты игрокам (MiniMessage). Единственный источник строк для игрока.
+#  Плейсхолдеры <n>/<arena>/<player>/... не должны совпадать с именами тегов.
+# ============================================================================
+
+menu:
+  page-info: "<gray>Страница <yellow><page><gray>/<yellow><pages>"
+  page-prev: "<yellow>◄ Назад"
+  page-next: "<yellow>Вперёд ►"
+  back: "<yellow>◄ Назад"
+
+errors:
+  world-not-loaded: "<red>Мир арены не загружен."
+  arena-not-found: "<red>Арены <aqua><arena><red> нет."
+  arena-exists: "<red>Арена <aqua><arena><red> уже существует."
+  need-args: "<red>Недостаточно аргументов."
+  not-a-number: "<red>Нужно число."
+  unknown-sub: "<red>Неизвестная подкоманда. /mg help"
+  no-permission: "<red>Нет прав."
+
+# ===== игровой цикл =====
+game:
+  already-in-game: "<red>Вы уже в игре."
+  arena-disabled: "<red>Арена <aqua><arena><red> выключена."
+  arena-not-ready: "<red>Арена <aqua><arena><red> не настроена (нужны лобби и спавны)."
+  snapshot-exists: "<red>Осталось незавершённое состояние — перезайдите на сервер для восстановления и повторите."
+  match-in-progress: "<red>На арене <aqua><arena><red> уже идёт матч."
+  joined: "<green><player> <gray>вошёл (<yellow><current><gray>/<yellow><max><gray>)."
+  player-left: "<yellow><player> <gray>вышел (<yellow><current><gray>)."
+  you-left: "<yellow>Вы вышли с арены <aqua><arena><yellow>."
+  leave-item-name: "<red>Выйти из игры"
+  leave-item-lore:
+    - "<gray>ПКМ — покинуть арену."
+  countdown-start: "<green>Старт через <yellow><n> <green>сек."
+  countdown: "<gray>Старт через <yellow><n><gray>..."
+  countdown-cancel: "<red>Отсчёт отменён — мало игроков."
+  started: "<green><b>Матч начался!</b> <gray>(<white><game><gray>)"
+  eliminated: "<red><player> <gray>выбыл. Осталось: <yellow><alive>"
+  left-match: "<yellow><player> <gray>покинул матч. Осталось: <yellow><alive>"
+  winner: "<gold><b>Победитель: <yellow><winner></b>"
+  draw: "<gray><b>Ничья.</b>"
+
+# ===== выбор арены (/mg) =====
+select:
+  title: "<dark_gray><b>Мини-игры</b>"
+  empty-name: "<gray>Арен нет"
+  empty-lore:
+    - "<gray>Админ: /mg create <ID>"
+  status-disabled: "<red>выключена"
+  status-idle: "<green>ожидание"
+  status-running: "<yellow>идёт матч"
+  lore-status: "<gray>Статус: <status>"
+  lore-players: "<gray>Игроки: <yellow><current><gray>/<yellow><max>"
+  lore-join: "<yellow>► ЛКМ — войти"
+
+# ===== хаб настройки (/mg gui) =====
+hub:
+  title: "<dark_gray><b>Настройка: </b>"
+  close-name: "<red>Закрыть"
+  status-id: "<dark_gray>id: <gray><id>"
+  status-world: "<gray>Мир: <yellow><world>"
+  status-none: "не задан"
+  status-enabled: "<gray>Включена: <value>"
+  status-yes: "<green>да"
+  status-no: "<red>нет"
+  status-players: "<gray>Игроки: <yellow><min><gray>–<yellow><max>"
+  status-spawns: "<gray>Спавнов: <yellow><n>"
+  status-session: "<gray>Матч: <value>"
+  status-running: "<green>идёт"
+  status-idle: "<gray>нет"
+  btn-settings-name: "<gold>Параметры"
+  btn-settings-lore:
+    - "<gray>Игроки, отсчёты, длительность."
+  btn-points-name: "<gold>Точки"
+  btn-points-lore:
+    - "<gray>Спавны, лобби, блоки-подсказки."
+  btn-name-name: "<gold>Имя арены"
+  btn-name-lore:
+    - "<gray>Ввод через наковальню (MiniMessage)."
+  btn-desc-name: "<gold>Описание"
+  btn-desc-lore:
+    - "<gray>Ввод через наковальню."
+  btn-check-name: "<gold>Проверка"
+  btn-check-lore:
+    - "<gray>Что мешает включить арену."
+  btn-enable-name: "<green>Включить"
+  btn-enable-lore:
+    - "<gray>Проверит и включит арену."
+  btn-disable-name: "<red>Выключить"
+  btn-disable-lore:
+    - "<gray>Снять арену с игры."
+  btn-start-name: "<green>Форс-старт"
+  btn-start-lore:
+    - "<gray>Запустить матч (если есть лобби)."
+  btn-stop-name: "<red>Остановить"
+  btn-stop-lore:
+    - "<gray>Досрочно завершить матч."
+  name-anvil-title: "<dark_gray>Имя арены:"
+  desc-anvil-title: "<dark_gray>Описание:"
+
+# ===== ± редактор параметров =====
+settings:
+  title: "<dark_gray>Параметры: "
+  value: "<gray>Текущее: <yellow><value>"
+  note-zero: "<dark_gray>0 = без лимита"
+  adjust:
+    - "<dark_green>ЛКМ +1 <gray>(Shift +10)"
+    - "<yellow>ПКМ -1 <gray>(Shift -10)"
+  name-minplayers: "<gold>Мин. игроков"
+  name-maxplayers: "<gold>Макс. игроков"
+  name-lobbycountdown: "<gold>Отсчёт в лобби (сек)"
+  name-countdownfull: "<gold>Отсчёт при полном лобби (сек)"
+  name-duration: "<gold>Длительность матча (сек)"
+
+# ===== точки =====
+points:
+  title: "<dark_gray>Точки: "
+  count: "<gray>Спавнов: <yellow><n>"
+  spawn-name: "<gold>Спавны"
+  spawn-lore:
+    - "<yellow>► Клик — получить маркер."
+    - "<gray>ПКМ маркером по блоку = точка спавна,"
+    - "<gray>Shift+ПКМ = убрать точку."
+  spawn-given: "<green>Маркер спавна выдан. ПКМ по блоку — точка."
+  lobby-name: "<gold>Лобби = моя позиция"
+  lobby-current: "<gray>Лобби задано: <value>"
+  lobby-yes: "<green>да"
+  lobby-no: "<red>нет"
+  lobby-lore:
+    - "<yellow>► Клик — сделать лобби здесь."
+  lobby-set: "<green>Лобби арены <aqua><arena><green> установлено."
+  markers-name: "<gold>Расставить подсказки-блоки"
+  markers-lore:
+    - "<gray>Стёкла на лобби/спавнах — видно разметку."
+    - "<gray>Снимаются в начале матча."
+  markers-busy: "<red>Арена <aqua><arena><red> сейчас в матче."
+  markers-placed: "<green>Подсказки расставлены на арене <aqua><arena><green>: <yellow><n>."
+
+anvil:
+  empty: "<red>Введите текст в поле переименования наковальни."
+
+# ===== HUD =====
+hud:
+  title: "<gold><b><game></b>"
+  line-arena: "<gray>Арена: <white><arena>"
+  line-phase: "<gray>Фаза: <white><phase>"
+  phase-lobby: "лобби"
+  phase-countdown: "отсчёт"
+  phase-running: "матч"
+  phase-ending: "финиш"
+  line-alive: "<gray>В игре: <green><n>"
+  line-players: "<gray>Игроки: <yellow><n><gray>/<yellow><max>"
+  line-time: "<gray>Время: <yellow><time>"
+  bossbar-running: "<white>В игре: <green><alive> <gray>| <white>Время: <yellow><time>"
+  bossbar-lobby: "<yellow>Ожидание игроков: <white><n><gray>/<white><max>"
+
+# ===== статистика (/mg stats) =====
+stats:
+  not-found: "<gray>По игроку <white><player><gray> нет статистики."
+  header: "<dark_green>===== <white><player> <dark_green>====="
+  line-wins: "<gray>Побед: <green><n>"
+  line-loses: "<gray>Поражений: <red><n>"
+  line-kills: "<gray>Убийств: <yellow><n>"
+  line-played: "<gray>Матчей: <white><n>"
+
+# ===== проверка арены =====
+check:
+  header: "<dark_green>Проверка арены <aqua><arena><dark_green>:"
+  mark-critical: "<red>[КРИТ] "
+  mark-warning: "<yellow>[ПРЕД] "
+  mark-good: "<green>[ОК] "
+  world: "<red>Мир «<world>» не загружен."
+  no-lobby: "<red>Не задано лобби (/mg setlobby)."
+  no-spawns: "<red>Нет точек спавна (/mg addspawn)."
+  few-spawns: "<yellow>Спавнов <have>, а мин. игроков <need> — на всех может не хватить."
+  player-range: "<yellow>Макс. игроков (<max>) меньше мин. (<min>)."
+  good: "<green>Арена готова к включению."
+  enable-blocked: "<red>Включение арены <aqua><arena><red> заблокировано: есть [КРИТ]."
+
+# ===== разметка маркерами =====
+setup:
+  marker-name: "<gold>Маркер: <yellow><type>"
+  marker-lore-arena: "<dark_gray>арена <arena>"
+  marker-lore-use:
+    - "<yellow>ПКМ по блоку — поставить точку."
+    - "<gray>Shift+ПКМ — убрать точку."
+  bad-arena: "<red>Этот маркер не от существующей арены."
+  busy: "<red>Арена <aqua><arena><red> сейчас в матче."
+  spawn-added: "<green>Спавн (<x>, <y>, <z>) добавлен. Всего: <yellow><n>."
+  spawn-removed: "<yellow>Спавн (<x>, <y>, <z>) убран. Осталось: <white><n>."
+  not-a-point: "<red>Здесь нет точки спавна (<x>, <y>, <z>)."
+
+marker-types:
+  spawn: "спавн"
+
+# ===== админ =====
+admin:
+  reloaded: "<dark_green>Настройки перезагружены."
+  saved: "<dark_green>Сохранено."
+  created: "<dark_green>Арена <aqua><arena><dark_green> создана."
+  created-hint: "<gray>Дальше: /mg gui <arena> (лобби, спавны, параметры), затем /mg enable <arena>."
+  removed: "<yellow>Арена <aqua><arena><yellow> удалена."
+  enabled: "<dark_green>Арена <aqua><arena><dark_green> включена."
+  disabled: "<yellow>Арена <aqua><arena><yellow> выключена."
+  lobby-set: "<green>Лобби арены <aqua><arena><green> установлено."
+  marker-given: "<green>Маркер выдан. ПКМ по блоку — точка."
+  set-usage: "<yellow>/mg set <ID> <minplayers|maxplayers|lobbycountdown|countdownfull|duration> <число>"
+  set-ok: "<dark_green>Арена <aqua><arena><dark_green>: <yellow><key><dark_green> = <yellow><n><dark_green>."
+  name-set: "<dark_green>Имя арены <aqua><arena><dark_green>: <name><dark_green>."
+  desc-set: "<dark_green>Описание арены <aqua><arena><dark_green> обновлено."
+  cannot-start: "<red>Нельзя запустить арену <aqua><arena><red> (нет игроков в лобби)."
+  started: "<dark_green>Матч на арене <aqua><arena><dark_green> запущен."
+  stopped: "<yellow>Матч на арене <aqua><arena><yellow> остановлен."
+  list-header: "<dark_green>===== Арены ====="
+  list-entry: "<white><arena> <gray>— <status> <gray>(<yellow><current><gray>/<yellow><max><gray>)"
+  list-disabled: "<red>выключена"
+  list-idle: "<green>ожидание"
+  list-running: "<yellow>матч"
+  state-on: "<green>ВКЛ"
+  state-off: "<red>ВЫКЛ"
+  debuglog-on: "<dark_green>Отладочный лог включён."
+  debuglog-off: "<yellow>Отладочный лог выключен."
+  debuglog-clear: "<yellow>Буфер очищен (<n> строк)."
+  debuglog-save: "<dark_green>Лог сохранён: <yellow><file>"
+  debuglog-save-fail: "<red>Не удалось сохранить лог (см. консоль)."
+  debuglog-status: "<gray>Отладочный лог: <state> <dark_gray>(в буфере <n>)"
+
+# ===== заглушка игры (образец) =====
+template-game:
+  display-name: "Шаблонная мини-игра"
+
+# ===== MgCore Reborn =====
+sbw:
+  display-name: "MgCore Reborn"
+  busy: "<red>Арена <aqua><arena><red> сейчас в матче — настройка недоступна."
+  center-set: "<green>Центр арены <aqua><arena><green> задан. Спавнов по кольцу: <yellow><n> <gray>(радиус <yellow><radius><gray>)."
+  radius-set: "<green>Радиус арены <aqua><arena><green> = <yellow><radius><green>. Спавны перестроены: <yellow><n>."
+  radius-set-no-center: "<yellow>Радиус арены <aqua><arena><yellow> = <yellow><radius><yellow>. Центр не задан — сделай <white>/mg setcenter <arena></white>."
+  maxplayers-set: "<green>Макс. игроков арены <aqua><arena><green> = <yellow><max><green>. Спавнов по кольцу: <yellow><n>."
+  mode-set: "<green>Режим эпох арены <aqua><arena><green>: <yellow><mode><green>."
+  time-set: "<green>Длительность <yellow><phase><green> арены <aqua><arena><green> = <yellow><time> <gray>(<n> сек)."
+  phase-match: "обычной фазы"
+  phase-fight: "схватки"
+  import-empty: "<yellow>Ставящихся блоков не найдено — добавлять нечего."
+  import-look-chest: "<yellow>Посмотри на контейнер (сундук/бочку/шалкер) рядом и повтори."
+  usage-setcenter: "<yellow>/mg setcenter <ID> <gray>— центр арены = твоя позиция (спавны встанут по кольцу)."
+  usage-setradius: "<yellow>/mg setradius <ID> <число|default> <gray>— радиус кольца спавнов."
+  usage-setmaxplayers: "<yellow>/mg setmaxplayers <ID> <число> <gray>— число игроков (и точек по кольцу)."
+  usage-setmode: "<yellow>/mg setmode <ID> <personal|shared> <gray>— режим продвижения эпох."
+  usage-settime: "<yellow>/mg settime <ID> <match|fight> <секунды|default> <gray>— длительность фазы матча."
+  usage-epochs: "<yellow>/mg epochs <ID> <gray>— GUI-редактор эпох (блоки, веса, лут, рубежи, режим)."
+  usage-kit: "<yellow>/mg kit <ID> <gray>— GUI-редактор стартового набора (что положишь — то и выдаётся)."
+  kit-saved: "<green>Стартовый набор арены <aqua><arena><green> сохранён."
+  bossbar-epoch: "<white><epoch> <gray>| рубеж <yellow><prog><gray>/<yellow><goal>"
+  bossbar-epoch-final: "<white><epoch> <gray>| <yellow><prog> <gray>сломано (финал)"
+  sidebar-epoch: "<gray>Эпоха: <white><epoch>"
+  sidebar-progress: "<gray>Рубеж: <yellow><prog><gray>/<yellow><goal>"
+  sidebar-progress-final: "<gray>Сломано: <yellow><prog>"
+  match-begin: "<gold>Эпоха <yellow><epoch><gold>! Ломай свой блок — добывай и двигай эпохи."
+  epoch-advance: "<gold><b>Новая эпоха: <yellow><epoch></b>"
+  epoch-advance-shared: "<gold><b>Арена вступает в эпоху: <yellow><epoch></b>"
+  respawned: "<green>Возрождение! Твой блок цел."
+  block-destroyed: "<red><breaker> <gray>уничтожил блок возрождения игрока <white><victim><gray>!"
+  your-block-title: "<red><b>Блок сломан!</b>"
+  your-block-subtitle: "<gray>Следующая смерть — выбывание."
+  bossbar-fight: "<red><b>СХВАТКА</b> <gray>| до разрушения <yellow><time>"
+  bossbar-destruction: "<dark_red><b>РАЗРУШЕНИЕ АРЕНЫ</b>"
+  sidebar-phase-normal: "<gray>До схватки: <yellow><time>"
+  sidebar-phase-fight: "<gray>Схватка: <red><time>"
+  sidebar-phase-destruction: "<dark_red>Разрушение арены!"
+  fight-title: "<red><b>СХВАТКА!</b>"
+  fight-subtitle: "<gray>Блоки сломаны — респавнов больше нет!"
+  fight-begin: "<red><b>Схватка!</b> <gray>Блоки возрождения сломаны — бой до последнего."
+  destruction-title: "<dark_red><b>РАЗРУШЕНИЕ</b>"
+  destruction-subtitle: "<gray>Поставленные блоки исчезают!"
+  destruction-begin: "<dark_red>Арена разрушается — поставленные блоки исчезают. Победит последний выживший!"
+  lobby-damage: "<gray>Урон в разминке: <yellow><dmg>"
+  lobby-winner: "<gold>Разминку выиграл <yellow><player> <gold>(урон <yellow><dmg><gold>)."
+  help:
+    - "<dark_green>--- MgCore ---"
+    - "<gray>/mg setcenter <ID> <gray>— центр арены (кольцо спавнов)"
+    - "<gray>/mg setradius <ID> <n|default> <gray>— радиус кольца"
+    - "<gray>/mg setmaxplayers <ID> <n> <gray>— число игроков"
+    - "<gray>/mg setmode <ID> personal|shared <gray>— режим эпох"
+    - "<gray>/mg settime <ID> match|fight <n|default> <gray>— время фаз"
+    - "<gray>/mg epochs <ID> <gray>— GUI-редактор эпох"
+    - "<gray>/mg kit <ID> <gray>— GUI-редактор стартового набора"
+
+# ===== MgCore: GUI редактора эпох =====
+sbwgui:
+  list-title: "<dark_gray><b>Эпохи: </b>"
+  list-add-name: "<green>+ Добавить эпоху"
+  list-add-lore:
+    - "<gray>Создать новую эпоху в конце списка."
+  list-mode-name: "<gold>Режим эпох"
+  list-mode-value: "<gray>Сейчас: <yellow><mode>"
+  list-mode-lore:
+    - "<yellow>► Клик — переключить."
+    - "<gray>personal — у каждого своя цепочка."
+    - "<gray>shared — общая на арену."
+  mode-personal: "персональный"
+  mode-shared: "общий"
+  list-epoch-num: "<dark_gray>эпоха №<n>"
+  list-epoch-blocks: "<gray>Блоков: <yellow><n>"
+  list-epoch-inherits: "<gray>Наследует эпох: <yellow><n>"
+  list-epoch-actions:
+    - "<yellow>► ЛКМ — редактировать"
+    - "<gray>ПКМ — удалить"
+    - "<gray>Shift+ЛКМ вверх / Shift+ПКМ вниз — порядок"
+  list-time-name: "<gold>Время фаз"
+  list-time-match: "<gray>Обычная фаза: <yellow><time>"
+  list-time-fight: "<gray>Схватка: <yellow><time>"
+  list-time-lore:
+    - "<yellow>► Клик — настроить длительности фаз."
+  epoch-title: "<dark_gray><b>Эпоха</b>"
+  epoch-name-btn: "<gold>Имя эпохи"
+  epoch-name-lore:
+    - "<yellow>► Клик — переименовать (наковальня)."
+    - "<gray>Сейчас:"
+  epoch-name-anvil: "<dark_gray>Имя эпохи:"
+  epoch-threshold-name: "<gold>Рубеж"
+  epoch-threshold-value: "<gray>Рубеж: <yellow><n> <gray>блоков"
+  epoch-threshold-final: "<gray>Рубеж: <yellow>нет <gray>(финальная — до конца матча)"
+  epoch-addblock-name: "<green>+ Добавить блок"
+  epoch-addblock-lore:
+    - "<yellow>► Клик — открыть палитру блоков."
+  epoch-frominv-name: "<green>Добавить из инвентаря"
+  epoch-frominv-lore:
+    - "<yellow>► Клик — залить блоки из твоего инвентаря."
+    - "<gray>Количество каждого блока = его вес."
+  epoch-fromchest-name: "<green>Добавить из сундука"
+  epoch-fromchest-lore:
+    - "<yellow>► Клик — залить блоки из контейнера,"
+    - "<gray>на который ты смотришь. Кол-во = вес."
+  epoch-copy-name: "<gold>Скопировать из эпохи"
+  epoch-copy-lore:
+    - "<yellow>► Клик — выбрать эпоху и скопировать её блоки сюда."
+  epoch-inherit-name: "<light_purple>Наследуемые эпохи"
+  epoch-inherit-lore:
+    - "<yellow>► Клик — выбрать эпохи, чьи блоки подмешиваются."
+    - "<gray>Блоки не копируются — берутся динамически."
+  epoch-inherit-count: "<gray>Наследует: <yellow><n>"
+  import-added: "<green>Добавлено блоков: <yellow><n><green>."
+  copy-title: "<dark_gray><b>Скопировать блоки из эпохи</b>"
+  copy-pick:
+    - "<yellow>► Клик — скопировать блоки этой эпохи сюда."
+  copy-done: "<green>Скопировано блоков: <yellow><n> <green>из эпохи <white><epoch><green>."
+  copy-empty: "<yellow>В этой эпохе нет блоков для копирования."
+  inherit-title: "<dark_gray><b>Наследуемые эпохи</b>"
+  inherit-on: "<green>✔ Включена (блоки подмешиваются)"
+  inherit-off: "<dark_gray>✘ Не включена"
+  inherit-toggle:
+    - "<yellow>► Клик — включить/выключить."
+  time-title: "<dark_gray><b>Время фаз</b>"
+  time-match-name: "<gold>Обычная фаза"
+  time-fight-name: "<gold>Схватка"
+  time-value: "<gray>Сейчас: <yellow><time> <gray>(<n> сек)"
+  time-adjust:
+    - "<dark_green>ЛКМ +10 <gray>(Shift +60)"
+    - "<yellow>ПКМ -10 <gray>(Shift -60)"
+  block-click:
+    - "<yellow>► Клик — настроить блок"
+  block-title: "<dark_gray><b>Блок эпохи</b>"
+  block-weight-name: "<gold>Вес появления"
+  block-weight: "<gray>Вес: <yellow><n>"
+  block-is-container: "<green>Контейнер (можно вложить лут)"
+  block-is-plain: "<dark_gray>Обычный блок"
+  block-loot-name: "<gold>Лут контейнера"
+  block-loot-lore:
+    - "<yellow>► Клик — редактор лута."
+    - "<gray>Что положишь — то и появится внутри."
+  block-loot-count: "<gray>Предметов внутри: <yellow><n>"
+  block-remove-name: "<red>Удалить блок"
+  block-remove-lore:
+    - "<gray>Убрать этот блок из эпохи."
+  palette-title: "<dark_gray><b>Палитра блоков</b>"
+  palette-add:
+    - "<yellow>► Клик — добавить в эпоху (вес 1)."
+  palette-added: "<green>Блок <yellow><block><green> добавлен в эпоху."
+  loot-title: "<dark_gray>Лут контейнера"
+  loot-locked: "<dark_gray>—"
+  kit-title: "<dark_gray><b>Стартовый набор</b>"
+  threshold-adjust:
+    - "<dark_green>ЛКМ +1 <gray>(Shift +10)"
+    - "<yellow>ПКМ -1 <gray>(Shift -10), мин. -1 = финал"
+  weight-adjust:
+    - "<dark_green>ЛКМ +1 <gray>(Shift +10)"
+    - "<yellow>ПКМ -1 <gray>(Shift -10)"
+
+# ===== справка =====
+help:
+  player:
+    - "<dark_green>===== MgCore ====="
+    - "<gray>/mg <gray>— выбрать арену и войти"
+    - "<gray>/mg join <ID> <gray>— войти на арену"
+    - "<gray>/mg leave <gray>— выйти"
+    - "<gray>/mg stats [ник] <gray>— статистика"
+  admin:
+    - "<dark_green>--- админ ---"
+    - "<gray>/mg create <ID> <gray>— создать арену (мир+лобби здесь)"
+    - "<gray>/mg gui <ID> <gray>— ХАБ настройки (параметры/точки/имя)"
+    - "<gray>/mg setlobby <ID> <gray>— лобби здесь"
+    - "<gray>/mg addspawn <ID> <gray>— маркер спавна (ПКМ по блоку)"
+    - "<gray>/mg set <ID> <ключ> <число> <gray>— параметр"
+    - "<gray>/mg enable|disable <ID> <gray>— вкл/выкл"
+    - "<gray>/mg check <ID> <gray>— валидатор"
+    - "<gray>/mg start|stop <ID> <gray>— форс-старт/стоп"
+    - "<gray>/mg list <gray>— список арен"
+    - "<gray>/mg reload|save <gray>— перезагрузка/сохранение"
+    - "<gray>/mg debuglog on|off|save|clear <gray>— отладочный лог"

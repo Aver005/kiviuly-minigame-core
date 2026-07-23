@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew :mg-core:compileJava --console=plain)",
+      "Bash(./gradlew :mg-core:jar --console=plain)",
+      "Bash(unzip -p mg-core/build/libs/MgCore-1.0.0.jar plugin.yml)"
+    ]
+  }
+}

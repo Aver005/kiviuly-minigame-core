@@ -1,0 +1,18 @@
+name: MgCore
+main: ru.kiviuly.mg.MgCorePlugin
+version: '${version}'
+api-version: '1.21'
+author: kiviuly
+description: Kiviuly minigame platform core - arenas, matches, lobby, stats, HUD.
+commands:
+  mg:
+    description: MgCore platform commands
+    usage: /mg help
+    aliases: [mgcore, kmg]
+permissions:
+  mg.admin:
+    description: Minigame admin commands
+    default: op
+  mg.admin.debug:
+    description: Minigame debug/simulation commands
+    default: op

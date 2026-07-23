@@ -1,0 +1,25 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.classpath
+*.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local server / deploy output
+run/
+deploy/
+*.log
+.dev
+.trae
+
+# Local env (deploy dir etc.) — copy .env.example to .env
+.env
