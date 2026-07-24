@@ -48,6 +48,12 @@ public interface ArenaService
     /** Сохранить арену на диск (после правок игро-специфичной разметки/настроек). */
     void save(Arena arena);
 
+    /** Создать арену, закрепив её за игрой {@code gameId} (null = без владельца). */
+    Arena create(String id, String worldName, String gameId);
+
+    /** Удалить арену конкретной игры. true — арена была. */
+    boolean delete(String gameId, String arenaId);
+
     /** Активный матч игрока (или null). */
     Match sessionOf(Player p);
 
@@ -59,4 +65,10 @@ public interface ArenaService
 
     /** Выход игрока по своей воле. */
     void leave(Player p);
+
+    /** Досрочно запустить матч на арене (админ). false — некого запускать / уже идёт. */
+    boolean forceStart(Arena arena);
+
+    /** Немедленно остановить и откатить матч на арене (админ/reload). */
+    void stop(Arena arena);
 }

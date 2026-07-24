@@ -301,6 +301,20 @@ public class ArenaManager implements ArenaService
         session.removePlayer(p, true);
     }
 
+    @Override
+    public boolean forceStart(Arena arena)
+    {
+        GameSession session = (GameSession) arena.getSession();
+        return session != null && session.forceStart();
+    }
+
+    @Override
+    public void stop(Arena arena)
+    {
+        GameSession session = (GameSession) arena.getSession();
+        if (session != null) {session.forceCleanup();}
+    }
+
     /** Остановить все сессии (onDisable/reload). */
     public void stopAll()
     {
