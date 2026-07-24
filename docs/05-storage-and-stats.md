@@ -4,6 +4,14 @@
 менять реализацию. Поэтому она спрятана за интерфейсом `StatsService`, а бэкенд
 выбирается конфигом. Игры и хаб про бэкенд не знают.
 
+> **РЕАЛИЗОВАНО (2026-07-24, SQLite single-server): Design B «generic-счётчики».**
+> Модель — произвольные именованные счётчики на игрока (`wins/loses/kills/played` — просто
+> базовые имена, escape добавляет `ores_mined`/`quests_completed`/…). Ниже секции «проект»
+> оставлены как контекст, но фактический контракт/схема — в блоках ниже с пометкой «факт».
+> Ядро САМО пишет `recordMatch` в конце матча; игра, что ведёт свою статистику, помечается
+> `Minigame.recordsOwnStats()` → `true` (иначе задвоение). Богатый вывод `/<cmd> stats` — через
+> хук `Minigame.statsLines`. MySQL-бэкенд (сквозная сеть, ключ по `gameId`) — будущее, роадмап.
+
 ## Текущее состояние (что есть в «wars»)
 
 Все три игры пишут в **локальный SQLite** `stats.db` через `StatsRepository`:
@@ -17,13 +25,20 @@ callback на main thread, whitelist колонок против инъекци�
 
 ## Решение: `StatsService` + сменный бэкенд
 
+**Факт (реализованный контракт):**
+
 ```java
 public interface StatsService {
-    CompletableFuture<Profile> profile(UUID player);
-    void record(UUID player, String gameId, StatDelta delta);          // async
+    void recordMatch(UUID uuid, String name, boolean won, int kills);   // база: +played +wins/loses +kills
+    void add(UUID uuid, String name, String column, int delta);         // произвольный счётчик += delta
+    void set(UUID uuid, String name, String column, int value);
+    void max(UUID uuid, String name, String column, int value);         // рекорды: col = max(col, value)
+    void findByName(String name, Consumer<Row> callback);               // Row: name + Map<String,Integer> counters
     CompletableFuture<List<LeaderboardEntry>> top(String gameId, String stat, int n);
 }
 ```
+
+`Row` несёт карту счётчиков + удобные `wins()/loses()/kills()/played()` и `counter(k)`.
 
 Два бэкенда, выбор — в `storage.yml`:
 
@@ -49,71 +64,46 @@ mysql:
 `SqliteStatsBackend` — по сути текущий `StatsRepository`, обобщённый под мульти-игру.
 `MySqlStatsBackend` — тот же контракт поверх общей БД.
 
-## Схема БД (проект)
+## Схема БД
 
-Мульти-игровая: статистика ключуется парой (игрок, игра), плюс произвольные
-кастомные счётчики.
+**Факт (SQLite, реализовано):** единая модель счётчиков — БЕЗ фикс-колонок под игру. Любой
+счётчик (базовый или игро-специфичный) — строка в `stat_counters`. Whitelist не нужен: `stat` —
+параметризованное ЗНАЧЕНИЕ, не имя колонки.
 
 ```sql
--- игроки (для отображения имени/last-seen)
-CREATE TABLE players (
-    uuid       CHAR(36) PRIMARY KEY,
-    name       VARCHAR(16) NOT NULL,
-    last_seen  BIGINT NOT NULL
-);
-
--- статистика на (игрок, игра)
-CREATE TABLE game_stats (
-    uuid    CHAR(36) NOT NULL,
-    game    VARCHAR(32) NOT NULL,     -- MinigameDescriptor.id: "skywars", "sbw", "escape"
-    wins    INT NOT NULL DEFAULT 0,
-    losses  INT NOT NULL DEFAULT 0,
-    kills   INT NOT NULL DEFAULT 0,
-    played  INT NOT NULL DEFAULT 0,
-    PRIMARY KEY (uuid, game),
-    INDEX idx_game_wins  (game, wins),
-    INDEX idx_game_kills (game, kills)
-);
-
--- произвольные счётчики игры (не хардкодим колонки под каждую игру)
-CREATE TABLE game_stats_custom (
-    uuid  CHAR(36) NOT NULL,
-    game  VARCHAR(32) NOT NULL,
-    stat  VARCHAR(48) NOT NULL,       -- "chests_opened", "quests_done" и т.п.
-    value INT NOT NULL DEFAULT 0,
-    PRIMARY KEY (uuid, game, stat),
-    INDEX idx_game_stat (game, stat, value)
-);
-
--- зарегистрированные игры (публикует mg-core при register) — хаб читает для селектора
-CREATE TABLE games (
-    id           VARCHAR(32) PRIMARY KEY,
-    display_name VARCHAR(64) NOT NULL,
-    updated_at   BIGINT NOT NULL
-);
+CREATE TABLE stat_players  (uuid TEXT PRIMARY KEY, name TEXT NOT NULL);
+CREATE TABLE stat_counters (uuid TEXT NOT NULL, stat TEXT NOT NULL,
+                            value INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (uuid, stat));
 ```
 
-Индексы `(game, wins)` / `(game, stat, value)` дают дешёвый `top(...)` для лидербордов.
+`add`/`set`/`max` — upsert через `ON CONFLICT(uuid,stat) DO UPDATE`. `findByName` собирает Map
+счётчиков join-ом. Ядро при открытии мигрирует старую широкую таблицу `stats` (wins/loses/kills/
+played) в эту модель и дропает её. Пока БД одно-игровая, `gameId` в `top(...)` игнорируется.
+
+**Проект (MySQL, сеть — будущее):** к `stat_counters` добавится колонка `game` (ключ станет
+`(uuid, game, stat)`), плюс таблицы `players(last_seen)` и `games` (реестр для селектора хаба),
+индексы `(game, stat, value)` под дешёвый `top`. Контракт `StatsService` менять не придётся —
+только второй бэкенд.
 
 > **Лидерборд** — то, чего сейчас нет ни в одной игре. `top("skywars","wins",10)` =
 > `SELECT ... ORDER BY wins DESC LIMIT 10` по индексу. UI лидерборда живёт на хабе.
 
 ## Инкремент и запись
 
-- `played` инкрементит **ядро** автоматически на входе в матч/на старте.
-- Победы/поражения/убийства/кастом — начисляет игра из `onEnd`/`onPlayerEliminated`
-  через `record(uuid, gameId, StatDelta)`.
-- Запись — **async** (как сейчас), никакого SQL на main thread. Чтение
-  (`profile`/`top`) — `CompletableFuture`, результат применяй на main thread.
+- **База (`played/wins/loses/kills`)** — ядро пишет `recordMatch` для каждого игрока в конце
+  матча (`GameSession.recordStats`). Простым играм (SkyWars/SBW) этого хватает — они `StatsService`
+  вообще не трогают.
+- **Игра со своей статистикой** помечается `recordsOwnStats()`→`true` (ядро тогда НЕ авто-пишет —
+  иначе задвоение) и сама начисляет всё через `add/set/max` (Escape так и делает).
+- Запись — **async**, никакого SQL на main thread. Чтение (`findByName`/`top`) — callback/
+  `CompletableFuture`, результат применяй на main thread.
 
 ```java
-// в onEnd победителю:
-core.stats().record(winner, "skywars",
-    new StatDelta(/*wins*/1, /*losses*/0, /*kills*/0, /*played*/0, Map.of()));
+// простой счётчик (из любого хука/листенера игры):
+core.stats().add(p.getUniqueId(), p.getName(), "chests_opened", 3);
 
-// кастомный счётчик:
-core.stats().record(p, "skywars",
-    new StatDelta(0,0,0,0, Map.of("chests_opened", 3)));
+// рекорд лучшего матча:
+core.stats().max(uuid, name, "best_game_kills", kills);
 ```
 
 ## Инварианты хранилища

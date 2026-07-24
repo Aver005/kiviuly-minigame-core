@@ -68,9 +68,16 @@ core.register(new MyGame(this, core));
 | `onEnd(Match, MatchResult)` | матч завершается | no-op |
 | `onCleanup(Match)` | после отката/уборки | no-op |
 | `scoreboardLines(Match, Player)` | доп. строки сайдбара | пусто |
-| `onCommand(Player, String sub, String[])` | игро-подкоманда `/mg <sub>` | `false` |
+| `onCommand(Player, String sub, String[])` | игро-подкоманда `/<cmd> <sub>` (после каркаса) | `false` |
 | `tabComplete` / `helpLines` | подсказки/справка | пусто |
-| `onReload()` | `/mg reload` | no-op |
+| `onEmptyCommand(Player)` | `/<cmd>` без аргументов; `true` = игра открыла своё меню | `false` |
+| `statsLines(Player, StatsService.Row)` | доп-строки `/<cmd> stats` (игро-счётчики) | пусто |
+| `recordsOwnStats()` | игра пишет статистику сама → ядро не авто-пишет `recordMatch` | `false` |
+| `canJoin(Match, Player)` | guard входа (все пути); `false` = запретить | `true` |
+| `keepOnDisconnect(Match, Player)` | оставить живого оффлайн-участником при дисконнекте | `false` |
+| `onPlayerDisconnect(Match, Player)` | оставлен оффлайн — поставить стража/пометку | no-op |
+| `onPlayerReconnect(Match, Player)` | вернулся в идущий матч — вернуть в игру | no-op |
+| `onReload()` | `/<cmd> reload` | no-op |
 | `onArenaCreated(Arena)` / `onArenaRemoved(String)` | арена создана/удалена | no-op |
 
 ## Match — контракт матча
@@ -90,7 +97,8 @@ Collection<Team> teams();  Team teamOf(UUID);            // FFA: по коман
 List<Player> alivePlayers();  int aliveCount();  List<Player> onlinePlayers();
 
 void rememberBlock(Block);  void rememberState(BlockState);  void trackEntity(Entity);
-void eliminate(Player, boolean died);                    // игра может выбить сама
+void eliminate(Player, boolean died);                    // выбить онлайн-игрока (broadcast движка)
+void eliminate(UUID id);                                 // ТИХО (без broadcast) + работает для оффлайн
 MatchResult defaultResult();
 void broadcast(String key, TagResolver... resolvers);
 ```

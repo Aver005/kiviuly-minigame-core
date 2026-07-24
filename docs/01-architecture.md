@@ -63,15 +63,21 @@ getServer().getServicesManager()
     .register(MgCore.class, facade, this, ServicePriority.Normal);
 ```
 
-Игровой плагин на `onEnable` его забирает и регистрирует свою игру:
+Игровой плагин на `onEnable` его забирает и регистрирует свою игру (фактический
+шаблон, одинаковый у всех трёх игр):
 
 ```java
 // skywars-reborn (plugin.yml: depend: [MgCore])
 public final class SkyWarsPlugin extends JavaPlugin {
     @Override public void onEnable() {
         MgCore core = getServer().getServicesManager().load(MgCore.class);
-        if (core == null) { getLogger().severe("MgCore not found"); setEnabled(false); return; }
-        core.register(new SkyWarsGame(this));   // отдаёт Minigame + MinigameDescriptor
+        if (core == null) { getLogger().severe("MgCore not found"); getServer().getPluginManager().disablePlugin(this); return; }
+        saveDefaultConfig();
+        Msg.merge(this);                         // домешать свой messages.yml (НЕ init — каталог общий)
+        core.register(new SkyWarsGame(this, core));
+        var h = core.commandFor(game);           // обработчик команды, привязанный к игре
+        getCommand("sw").setExecutor(h);
+        getCommand("sw").setTabCompleter(h);
     }
 }
 ```
@@ -83,6 +89,21 @@ public final class SkyWarsPlugin extends JavaPlugin {
 
 > `depend: [MgCore]` в `plugin.yml` игры гарантирует порядок загрузки: core уже
 > включён к моменту `onEnable` игры, сервис доступен.
+
+### Мульти-игровая модель (по требованию владельца)
+
+Ядро держит **реестр игр** и владение аренами закреплено за игрой:
+
+- **Арена принадлежит игре** (`Arena.gameId`) и хранится **в папке этой игры**
+  (`plugins/<Игра>/arenas/<ID>.yml`), а не у ядра. Ядро узнаёт папку через
+  `Minigame.dataFolder()`. У самого ядра — только `_unowned`.
+- **Id арены НЕ глобально уникален** — ключ пара (игра, id): `ARENA1` может быть и у
+  SkyWars, и у SkyBlockWars. Резолв: `ArenaService.get(gameId, id)` / `findById(id)`.
+- **Команды привязаны к игре.** `MgCore.commandFor(game)` даёт обработчик, видящий
+  только арены этой игры; платформенная `/mg` (owner=null) работает поверх всех арен и
+  принимает slug при конфликте id. Один класс `MinigameCommand`, два режима.
+- **Права.** Общее `mg.admin` покрывает всё; короткий узел игры (`Minigame.adminPermission()`,
+  напр. `sw.admin`) — только её команду и арены. Узел должен быть объявлен в `plugin.yml` игры.
 
 ## Несущая модель
 
@@ -151,13 +172,32 @@ public final class SkyWarsPlugin extends JavaPlugin {
 | `LOBBY → COUNTDOWN` | набран `min-players`; при полном лобби берёт `countdown-full-seconds` | — |
 | `COUNTDOWN → RUNNING` | телепорт на спавны, `SURVIVAL`, инвентарь очищен, разбивка по `Team` | `onStart(m)`, затем `giveLoadout(m, p)` каждому |
 | `RUNNING` (тик 1 Гц) | таймер, обновление HUD | `onTick(m)`; `checkResult(m)` |
-| гибель/выбывание | fake death → spectator | `onPlayerEliminated(m, mp)` |
+| смертельный урон | ядро гасит урон, спрашивает игру | `onLethalDamage(m, p)` (true → ядро выбивает; false → игра сама) |
+| гибель/выбывание | `match.eliminate(...)` → spectator | `onPlayerEliminated(m, mp)` |
 | `RUNNING → ENDING` | зафиксирован `MatchResult` | `onEnd(m, result)` |
 | `ENDING` (cleanup) | откат блоков, удаление сущностей, `restore` игроков, запись статистики | `onCleanup(m)` |
 
 `checkResult(m)` вызывается ядром и **завершает матч, как только вернёт не-null**.
 По умолчанию — `m.defaultResult()`: последняя живая команда (или игрок), либо ничья
 по таймауту. Переопредели, если условие победы другое.
+
+> **Выбывание ОБЯЗАНО идти через `Match.eliminate`** — только он сбрасывает
+> `MatchPlayer.isAlive()`, на котором держатся `aliveCount`/`defaultResult`. Игра, что
+> сама объявляет смерть, зовёт тихий `match.eliminate(UUID)` (без broadcast движка,
+> работает и для оффлайн-игрока); чат/спектейт получает через `onPlayerEliminated`.
+
+### Прочие точки расширения `Minigame`
+
+Сверх жизненного цикла (полный список — [02-api-reference.md](02-api-reference.md)):
+
+- **Команды:** `onCommand`/`tabComplete`/`helpLines` (игро-подкоманды после каркаса),
+  `onEmptyCommand` (своё меню на пустую команду), `statsLines` (доп-строки `/<cmd> stats`).
+- **Вход/арены:** `canJoin(m, p)` (guard входа на всех путях), `onArenaCreated`/`onArenaRemoved`.
+- **Статистика:** `recordsOwnStats()` → `true`, если игра пишет свою статистику сама
+  (ядро тогда не авто-пишет `recordMatch`, иначе задвоение).
+- **Оффлайн-возврат:** `keepOnDisconnect(m, p)` (оставить живого оффлайн-участником),
+  `onPlayerDisconnect`/`onPlayerReconnect` (страж/возврат). Ядро держит его в ростере и снапшот.
+- **Лобби-PvP:** `allowLobbyPvp`/`onLobbyAttack` (разминки). **Reload:** `onReload`.
 
 ## Инварианты (обещания платформы)
 
@@ -189,16 +229,20 @@ public final class SkyWarsPlugin extends JavaPlugin {
 plugins/MgCore/
 ├── config.yml            общие числа/флаги ядра
 ├── messages.yml          тексты ядра (MiniMessage)
-├── arenas/<id>.yml       по файлу на арену (генерик-часть)
+├── arenas/_unowned/...   только «беспризорные» арены (у ядра своих игр нет)
 ├── snapshots/<uuid>.yml  снапшоты игроков в матче
-├── storage.yml           бэкенд статистики: sqlite | mysql (+ креды)
+├── stats.db              статистика (generic-счётчики: stat_players + stat_counters)
 └── logs/debug-*.log      выгрузки debuglog
 
 plugins/SkyWars/          тонкий плагин-игра
-├── messages.yml          тексты игры
-├── game/<ARENA>.yml      game-specific конфиг арены (если нужен)
+├── messages.yml          тексты игры (ключи skywars.*)
+├── arenas/<ID>.yml       АРЕНЫ игры живут здесь (генерик-часть), не у ядра
+├── game/<ID>.yml         game-specific конфиг арены (если нужен)
 └── kits.yml, loot.yml    контент игры
 ```
+
+> Арена принадлежит игре и лежит в её папке; ядро находит папку через
+> `Minigame.dataFolder()`. Id арены уникален только внутри игры.
 
 Разбор конкретных интерфейсов — [02-api-reference.md](02-api-reference.md).
 Сеть, хаб и транспорт — [04-cross-server.md](04-cross-server.md).
