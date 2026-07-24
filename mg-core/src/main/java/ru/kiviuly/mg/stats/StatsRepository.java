@@ -8,8 +8,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -19,16 +20,14 @@ import org.bukkit.plugin.java.JavaPlugin;
 import ru.kiviuly.mg.api.stats.StatsService;
 
 /**
- * SQLite-бэкенд {@link StatsService} (stats.db). Запись — асинхронно; чтение —
- * асинхронно с callback в main thread. Драйвер org.sqlite встроен в Paper (shade
- * не нужен). Свои счётчики: добавь колонку в CREATE + {@link #COLUMNS} и вызывай
- * {@link #add}. Базовый набор — wins/loses/kills/played.
+ * SQLite-бэкенд {@link StatsService} (stats.db). Модель — произвольные именованные
+ * счётчики на игрока (таблица {@code stat_counters}: uuid+stat→value), ники — в
+ * {@code stat_players}. Так один бэкенд обслуживает все игры без игро-специфичных
+ * колонок. Драйвер org.sqlite встроен в Paper. Запись — асинхронно; чтение — async с
+ * callback в main thread.
  */
 public class StatsRepository implements StatsService
 {
-    /** Разрешённые колонки-счётчики (whitelist против SQL-инъекции в имени колонки). */
-    public static final Set<String> COLUMNS = Set.of("wins", "loses", "kills", "played");
-
     private final JavaPlugin plugin;
     private Connection connection;
 
@@ -42,15 +41,53 @@ public class StatsRepository implements StatsService
         try (Statement st = connection.createStatement())
         {
             st.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS stats (
+                CREATE TABLE IF NOT EXISTS stat_players (
                     uuid TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    wins INTEGER NOT NULL DEFAULT 0,
-                    loses INTEGER NOT NULL DEFAULT 0,
-                    kills INTEGER NOT NULL DEFAULT 0,
-                    played INTEGER NOT NULL DEFAULT 0
+                    name TEXT NOT NULL
+                )""");
+            st.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS stat_counters (
+                    uuid TEXT NOT NULL,
+                    stat TEXT NOT NULL,
+                    value INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (uuid, stat)
                 )""");
         }
+        migrateLegacyWideTable();
+    }
+
+    /**
+     * Разовая миграция старой широкой таблицы {@code stats} (uuid,name,wins,loses,kills,
+     * played) в модель счётчиков. После переноса старая таблица удаляется, поэтому
+     * миграция идемпотентна (при следующем запуске таблицы уже нет).
+     */
+    private void migrateLegacyWideTable() throws SQLException
+    {
+        boolean hasLegacy;
+        try (PreparedStatement ps = connection.prepareStatement(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='stats'"))
+        {
+            try (ResultSet rs = ps.executeQuery()) {hasLegacy = rs.next();}
+        }
+        if (!hasLegacy) {return;}
+
+        int migrated = 0;
+        try (Statement st = connection.createStatement();
+             ResultSet rs = st.executeQuery("SELECT uuid, name, wins, loses, kills, played FROM stats"))
+        {
+            while (rs.next())
+            {
+                String uuid = rs.getString("uuid");
+                ensurePlayer(uuid, rs.getString("name"));
+                setValue(uuid, "wins", rs.getInt("wins"));
+                setValue(uuid, "loses", rs.getInt("loses"));
+                setValue(uuid, "kills", rs.getInt("kills"));
+                setValue(uuid, "played", rs.getInt("played"));
+                migrated++;
+            }
+        }
+        try (Statement st = connection.createStatement()) {st.executeUpdate("DROP TABLE stats");}
+        plugin.getLogger().info("Stats: migrated " + migrated + " rows from legacy wide table to counters.");
     }
 
     public void close()
@@ -59,102 +96,152 @@ public class StatsRepository implements StatsService
         catch (SQLException ignored) {}
     }
 
-    private void ensureRow(UUID uuid, String name) throws SQLException
+    // ===== низкоуровневые операции (под synchronized через async) =====
+
+    private void ensurePlayer(UUID uuid, String name) throws SQLException {ensurePlayer(uuid.toString(), name);}
+
+    private void ensurePlayer(String uuid, String name) throws SQLException
     {
         try (PreparedStatement ps = connection.prepareStatement(
-            "INSERT INTO stats(uuid, name) VALUES(?, ?) ON CONFLICT(uuid) DO UPDATE SET name = excluded.name"))
+            "INSERT INTO stat_players(uuid, name) VALUES(?, ?) ON CONFLICT(uuid) DO UPDATE SET name = excluded.name"))
         {
-            ps.setString(1, uuid.toString());
+            ps.setString(1, uuid);
             ps.setString(2, name);
             ps.executeUpdate();
         }
     }
 
-    /** Итог матча одному игроку: +1 к played, +1 к wins или loses, +kills. */
+    private void addValue(String uuid, String stat, int delta) throws SQLException
+    {
+        try (PreparedStatement ps = connection.prepareStatement(
+            "INSERT INTO stat_counters(uuid, stat, value) VALUES(?, ?, ?) "
+            + "ON CONFLICT(uuid, stat) DO UPDATE SET value = value + excluded.value"))
+        {
+            ps.setString(1, uuid);
+            ps.setString(2, stat);
+            ps.setInt(3, delta);
+            ps.executeUpdate();
+        }
+    }
+
+    private void setValue(String uuid, String stat, int value) throws SQLException
+    {
+        try (PreparedStatement ps = connection.prepareStatement(
+            "INSERT INTO stat_counters(uuid, stat, value) VALUES(?, ?, ?) "
+            + "ON CONFLICT(uuid, stat) DO UPDATE SET value = excluded.value"))
+        {
+            ps.setString(1, uuid);
+            ps.setString(2, stat);
+            ps.setInt(3, value);
+            ps.executeUpdate();
+        }
+    }
+
+    private void maxValue(String uuid, String stat, int value) throws SQLException
+    {
+        try (PreparedStatement ps = connection.prepareStatement(
+            "INSERT INTO stat_counters(uuid, stat, value) VALUES(?, ?, ?) "
+            + "ON CONFLICT(uuid, stat) DO UPDATE SET value = MAX(value, excluded.value)"))
+        {
+            ps.setString(1, uuid);
+            ps.setString(2, stat);
+            ps.setInt(3, value);
+            ps.executeUpdate();
+        }
+    }
+
+    // ===== контракт StatsService =====
+
+    @Override
     public void recordMatch(UUID uuid, String name, boolean won, int kills)
     {
+        String id = uuid.toString();
         async(() ->
         {
-            ensureRow(uuid, name);
-            try (PreparedStatement ps = connection.prepareStatement(
-                "UPDATE stats SET played = played + 1, wins = wins + ?, loses = loses + ?, kills = kills + ? WHERE uuid = ?"))
-            {
-                ps.setInt(1, won ? 1 : 0);
-                ps.setInt(2, won ? 0 : 1);
-                ps.setInt(3, kills);
-                ps.setString(4, uuid.toString());
-                ps.executeUpdate();
-            }
+            ensurePlayer(id, name);
+            addValue(id, "played", 1);
+            addValue(id, won ? "wins" : "loses", 1);
+            if (kills != 0) {addValue(id, "kills", kills);}
         });
     }
 
-    /** Увеличить произвольный счётчик из whitelist. */
+    @Override
     public void add(UUID uuid, String name, String column, int delta)
     {
-        if (!COLUMNS.contains(column)) {throw new IllegalArgumentException("Bad column " + column);}
-        async(() ->
-        {
-            ensureRow(uuid, name);
-            try (PreparedStatement ps = connection.prepareStatement(
-                "UPDATE stats SET " + column + " = " + column + " + ? WHERE uuid = ?"))
-            {
-                ps.setInt(1, delta);
-                ps.setString(2, uuid.toString());
-                ps.executeUpdate();
-            }
-        });
+        String id = uuid.toString();
+        async(() -> {ensurePlayer(id, name); addValue(id, column, delta);});
     }
 
-    /** Прочитать статистику по нику (async; callback в main thread; row == null если нет). */
-    public void findByName(String name, Consumer<StatsService.Row> callback)
+    @Override
+    public void set(UUID uuid, String name, String column, int value)
+    {
+        String id = uuid.toString();
+        async(() -> {ensurePlayer(id, name); setValue(id, column, value);});
+    }
+
+    @Override
+    public void max(UUID uuid, String name, String column, int value)
+    {
+        String id = uuid.toString();
+        async(() -> {ensurePlayer(id, name); maxValue(id, column, value);});
+    }
+
+    @Override
+    public void findByName(String name, Consumer<Row> callback)
     {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () ->
         {
-            StatsService.Row row = null;
+            Row row = null;
             try (PreparedStatement ps = connection.prepareStatement(
-                "SELECT * FROM stats WHERE name = ? COLLATE NOCASE"))
+                "SELECT p.name AS pname, c.stat AS stat, c.value AS value FROM stat_players p "
+                + "LEFT JOIN stat_counters c ON c.uuid = p.uuid WHERE p.name = ? COLLATE NOCASE"))
             {
                 ps.setString(1, name);
                 try (ResultSet rs = ps.executeQuery())
                 {
-                    if (rs.next())
+                    Map<String, Integer> counters = new HashMap<>();
+                    String realName = null;
+                    boolean found = false;
+                    while (rs.next())
                     {
-                        row = new StatsService.Row(rs.getString("name"), rs.getInt("wins"),
-                            rs.getInt("loses"), rs.getInt("kills"), rs.getInt("played"));
+                        found = true;
+                        realName = rs.getString("pname");
+                        String stat = rs.getString("stat");
+                        if (stat != null) {counters.put(stat, rs.getInt("value"));}
                     }
+                    if (found) {row = new Row(realName, counters);}
                 }
             }
             catch (SQLException e)
             {
                 plugin.getLogger().severe("Stats read error: " + e.getMessage());
             }
-            StatsService.Row result = row;
+            Row result = row;
             Bukkit.getScheduler().runTask(plugin, () -> callback.accept(result));
         });
     }
 
-    /** Топ-N по счётчику stat (whitelist). gameId пока игнорируется (одно-игровая таблица). */
     @Override
-    public CompletableFuture<List<StatsService.LeaderboardEntry>> top(String gameId, String stat, int n)
+    public CompletableFuture<List<LeaderboardEntry>> top(String gameId, String stat, int n)
     {
-        if (!COLUMNS.contains(stat)) {throw new IllegalArgumentException("Bad column " + stat);}
-        CompletableFuture<List<StatsService.LeaderboardEntry>> future = new CompletableFuture<>();
+        CompletableFuture<List<LeaderboardEntry>> future = new CompletableFuture<>();
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () ->
         {
-            List<StatsService.LeaderboardEntry> out = new ArrayList<>();
-            // stat из whitelist COLUMNS — безопасно вклеить в SQL; n параметризован.
+            List<LeaderboardEntry> out = new ArrayList<>();
             try (PreparedStatement ps = connection.prepareStatement(
-                "SELECT uuid, name, " + stat + " AS v FROM stats ORDER BY v DESC LIMIT ?"))
+                "SELECT c.uuid AS uuid, p.name AS name, c.value AS value FROM stat_counters c "
+                + "JOIN stat_players p ON p.uuid = c.uuid WHERE c.stat = ? ORDER BY c.value DESC LIMIT ?"))
             {
-                ps.setInt(1, n);
+                ps.setString(1, stat);
+                ps.setInt(2, n);
                 try (ResultSet rs = ps.executeQuery())
                 {
                     int rank = 1;
                     while (rs.next())
                     {
-                        out.add(new StatsService.LeaderboardEntry(
+                        out.add(new LeaderboardEntry(
                             UUID.fromString(rs.getString("uuid")), rs.getString("name"),
-                            rs.getInt("v"), rank++));
+                            rs.getInt("value"), rank++));
                     }
                 }
             }

@@ -167,6 +167,7 @@ public class MinigameCommand implements TabExecutor
                     Msg.send(p, "stats.line-loses", Msg.ph("n", row.loses()));
                     Msg.send(p, "stats.line-kills", Msg.ph("n", row.kills()));
                     Msg.send(p, "stats.line-played", Msg.ph("n", row.played()));
+                    if (owner != null) {for (Component line : owner.statsLines(p, row)) {p.sendMessage(line);}}
                 });
                 return true;
             }

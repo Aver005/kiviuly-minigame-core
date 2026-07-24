@@ -378,6 +378,7 @@ public class GameSession implements Match
     private void recordStats(MatchResult result)
     {
         if (plugin.stats() == null) {return;}
+        if (game.recordsOwnStats()) {return;} // игра пишет свою статистику сама — не задваиваем
         Set<UUID> winners = new HashSet<>(result.winners());
         for (MatchPlayer mp : players.values())
         {

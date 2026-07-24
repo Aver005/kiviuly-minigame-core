@@ -81,6 +81,21 @@
   `ArenaCheck` (escape-валидация), `PlayerSnapshot` (setup-режим), `SetupMarkers` (escape-точки),
   `ArenaManager` (фасад-мост `Match`→`EscapeRules`). Все живые и обоснованные.
 
+## Статистика (Design B «generic-счётчики», 2026-07-24)
+
+- **Модель — произвольные именованные счётчики, не фикс-колонки.** `StatsService.Row` несёт
+  `Map<String,Integer> counters` + `counter(k)` (база wins/loses/kills/played — удобными методами).
+  Бэкенд: `stat_counters(uuid,stat,value)` + `stat_players(uuid,name)`. Новый счётчик = просто новое
+  имя в `add/set/max`, схему менять НЕ надо. Ложится на будущий MySQL.
+- **Ядро САМО пишет базовый `recordMatch` в конце матча** (`GameSession.recordStats` для всех игроков).
+  Простым играм (SkyWars/SBW) этого хватает — они `StatsService` вообще не трогают. Если игра пишет
+  СВОЮ статистику в ту же БД (Escape: свои wins/loses/kills/ores/…), будет ЗАДВОЕНИЕ. Решение — хук
+  `Minigame.recordsOwnStats()` → `true`: ядро тогда не авто-пишет. Escape так и делает.
+- **Богатый `/<cmd> stats` — через хук `Minigame.statsLines(viewer, row)`** (движок печатает базу +
+  игро-строки). `stats` ядро перехватывает до `onCommand`, поэтому иначе игре его не показать.
+- **Escape больше НЕ держит свою `stats.db`** — пишет в `core.stats()`. Старый `stats/StatsRepository`
+  удалён. `recordGameKills` разложен на `set("last_game_kills")`+`max("best_game_kills")`.
+
 ## Инструментальное
 
 - **Не вставляй импорт через `sed '/^package/a ...'`** — `\n` в шаблоне вставляется

@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import ru.kiviuly.mg.api.MgCore;
 import ru.kiviuly.mg.api.arena.Arena;
+import ru.kiviuly.mg.api.stats.StatsService;
 
 /**
  * ТОЧКА РАСШИРЕНИЯ. Логика конкретной мини-игры — один наследник, зарегистрированный
@@ -106,6 +107,14 @@ public abstract class Minigame
     /** Доп. строки сайдбара под стандартными (пусто = только стандартные). */
     public List<Component> scoreboardLines(Match m, Player viewer) {return List.of();}
 
+    /**
+     * Игра сама ведёт статистику (пишет свои счётчики через {@link MgCore#stats()}).
+     * Верни {@code true}, чтобы движок НЕ авто-записывал базовый {@code recordMatch} в
+     * конце матча — иначе wins/loses задвоятся с ручной записью игры. По умолчанию
+     * {@code false}: движок сам пишет базовую статистику (для простых игр без своей).
+     */
+    public boolean recordsOwnStats() {return false;}
+
     // ===== обобщённые хуки расширения (движок зовёт, игра решает) =====
 
     /**
@@ -152,6 +161,13 @@ public abstract class Minigame
 
     /** Доп. строки в {@code /<cmd> help} (игро-специфичные команды). */
     public List<Component> helpLines(Player p) {return List.of();}
+
+    /**
+     * Доп. строки в {@code /<cmd> stats} под базовыми (wins/loses/kills/played) —
+     * игро-специфичные счётчики игрока из {@code row} (напр. Escape: ores/quests/…).
+     * По умолчанию пусто.
+     */
+    public List<Component> statsLines(Player viewer, StatsService.Row row) {return List.of();}
 
     /** {@code /<cmd> reload}: перечитать игро-специфичные конфиги. */
     public void onReload() {}
