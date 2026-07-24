@@ -11,16 +11,19 @@
 
 | Путь | Что | Статус |
 |---|---|---|
-| `E:\Projects\Me\kiviuly-mg-core` | **платформа** (этот репо): `mg-api` + `mg-core` | рабочая |
-| `E:\Projects\Me\skywars-reborn` | игра SkyWars | ✅ переехала |
-| `E:\Projects\Me\skyblockwars-reborn` | игра SkyBlockWars | ✅ переехала |
-| `E:\Projects\Me\escape-reborn` | игра Escape | ⏳ **переезд не закончен** |
+| `c:\Work\Minecraft\kiviuly-mg-core` | **платформа** (этот репо): `mg-api` + `mg-core`, ветка `develop` | рабочая |
+| `c:\Work\Minecraft\skywars-reborn` | игра SkyWars | ✅ переехала |
+| `c:\Work\Minecraft\skyblockwars-reborn` | игра SkyBlockWars | ✅ переехала |
+| `c:\Work\Minecraft\escape-reborn` | игра Escape | ⏳ **кусок 4 в осн. закрыт** |
+
+> **Ветки:** миграция каждой ИГРЫ — на ветке `refactor/Migrate-to-MG-core` (не в `main`).
+> Платформа — на `develop` (своей `refactor/*` нет). Тестовый сервер: `C:\Servers\escape-server`.
 
 ## Как собрать
 
 ```bash
-cd E:/Projects/Me/kiviuly-mg-core && ./gradlew build     # платформа
-cd E:/Projects/Me/skywars-reborn  && ./gradlew build     # и так для каждой игры
+cd /c/Work/Minecraft/kiviuly-mg-core && ./gradlew build   # платформа
+cd /c/Work/Minecraft/escape-reborn   && ./gradlew build   # игра (на ветке refactor/Migrate-to-MG-core)
 ```
 
 Игры тянут `mg-api` из соседнего репо через composite build

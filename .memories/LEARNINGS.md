@@ -53,6 +53,32 @@
 - **Повороты сундуков** — отдельная группа точек `chest-facing` (ярлык = сторона),
   чтобы не мешаться с категориями лута в группе `chest`.
 
+## Команды и события платформы (грабли миграции, 2026-07-24)
+
+- **Игро-специфичные подкоманды — через `Minigame.onCommand`, НЕ через свой executor.**
+  Команду ведёт `core.commandFor(game)` (ядровая `MinigameCommand`). Она сама обрабатывает
+  каркас и отдаёт остальное в `owner.onCommand(p, sub, args)` (дефолт `return false`). Если игра
+  не переопределит хук — её подкоманды МЁРТВЫ (собирается зелёным, в рантайме `unknown-sub`).
+  Это и случилось с Escape: `EscapeGame` не имел `onCommand` → ~60 команд не работали.
+- **Порядок ядровой `MinigameCommand`:** сначала САМА перехватывает `join/leave/stats/help`
+  (до гейта прав) и `list/reload/save/debuglog` (после гейта) — их игра `onCommand`-ом НЕ
+  перекроет. Потом зовёт `owner.onCommand` (тут игра может вернуть `true` и перехватить всё
+  прочее, включая `create/enable/gui/set/...`). Возврат `false` → доводит ядро.
+  Последствие: `stats`/`debuglog`/меню-на-пустую-команду у игры не переопределяемы (см. punch-list в STATE).
+- **`Minigame.adminPermission()` должен совпадать с plugin.yml.** Ядро гейтит `mg.admin ||
+  adminPermission()`. Escape вернул `esc.admin`, а объявлен/используется `escape.admin` →
+  операторы (default op на `escape.admin`) НЕ проходили. Правило: короткий узел должен быть ОБЪЯВЛЕН.
+- **Летальный урон ведёт ХУК ядра, не листенер игры.** Ядро на `EntityDamageEvent` (NORMAL,
+  ignoreCancelled) само определяет леталь, `setCancelled(true)` и зовёт `onLethalDamage` →
+  правила. Свой `onDamage` на HIGH с `ignoreCancelled` НЕ сработает (ядро уже погасило).
+  Всё, что делалось в нём (у Escape — `dropInventory`+`setHealth`), надо переносить в реализацию
+  хука/`handleDeath`. Спектаторов ядро тоже делает неуязвимыми (`mp==null||!alive` → cancel).
+- **Двойной откат блоков УПОРЯДОЧЕН верно:** ядро откатывает свои `editedBlocks` в `cleanup()`
+  ДО `game.onCleanup`, поэтому escape-3-проход идёт последним и чинит стыки. Не переворачивай порядок.
+- **Что осталось СВОИМ у Escape и почему (не дубликаты):** `EscapeCommand` (делегат подкоманд),
+  `ArenaCheck` (escape-валидация), `PlayerSnapshot` (setup-режим), `SetupMarkers` (escape-точки),
+  `ArenaManager` (фасад-мост `Match`→`EscapeRules`). Все живые и обоснованные.
+
 ## Инструментальное
 
 - **Не вставляй импорт через `sed '/^package/a ...'`** — `\n` в шаблоне вставляется
