@@ -128,6 +128,19 @@ public abstract class Minigame
     public void onLobbyAttack(Match m, Player victim, Player damager, double damage) {}
 
     /**
+     * Игрок пытается войти в арену этой игры (движок зовёт ДО создания сессии, на любом
+     * пути входа — команда/меню). Верни {@code false}, чтобы запретить вход, объяснив
+     * причину игроку сам. По умолчанию разрешено.
+     */
+    public boolean canJoin(Arena arena, Player p) {return true;}
+
+    /**
+     * Команда игры введена без аргументов ({@code /<cmd>}). Верни {@code true}, если сам
+     * открыл меню/обработал — движок тогда НЕ откроет своё меню выбора арен. По умолчанию нет.
+     */
+    public boolean onEmptyCommand(Player p) {return false;}
+
+    /**
      * Игро-специфичная подкоманда {@code /<cmd> <sub> ...} (движок зовёт после своих,
      * до «неизвестная подкоманда»; вызывающий уже прошёл проверку прав админа).
      * Верни {@code true}, если обработал. {@code args[0]} = сам {@code sub}.

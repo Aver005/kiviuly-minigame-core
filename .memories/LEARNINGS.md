@@ -64,7 +64,9 @@
   (до гейта прав) и `list/reload/save/debuglog` (после гейта) — их игра `onCommand`-ом НЕ
   перекроет. Потом зовёт `owner.onCommand` (тут игра может вернуть `true` и перехватить всё
   прочее, включая `create/enable/gui/set/...`). Возврат `false` → доводит ядро.
-  Последствие: `stats`/`debuglog`/меню-на-пустую-команду у игры не переопределяемы (см. punch-list в STATE).
+  Последствие: `stats` и ядровый `debuglog` у игры не переопределяемы. Пустая команда и вход —
+  теперь переопределяемы новыми хуками `Minigame.onEmptyCommand(p)` и `canJoin(arena,p)` (2026-07-24);
+  свой лог игра вешает на своё имя саб-команды (Escape — `/escape esclog`, ядровый — `/escape debuglog`).
 - **`Minigame.adminPermission()` должен совпадать с plugin.yml.** Ядро гейтит `mg.admin ||
   adminPermission()`. Escape вернул `esc.admin`, а объявлен/используется `escape.admin` →
   операторы (default op на `escape.admin`) НЕ проходили. Правило: короткий узел должен быть ОБЪЯВЛЕН.

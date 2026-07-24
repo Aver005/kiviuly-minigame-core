@@ -269,6 +269,8 @@ public class ArenaManager implements ArenaService
     {
         if (inGame(p)) {Msg.send(p, "game.already-in-game"); return;}
         if (!arena.isEnabled()) {Msg.send(p, "game.arena-disabled", Msg.ph("arena", arena.getId())); return;}
+        Minigame game = plugin.gameFor(arena);
+        if (game != null && !game.canJoin(arena, p)) {return;} // игра сама объяснила отказ
         if (arena.getWorld() == null) {Msg.send(p, "errors.world-not-loaded"); return;}
         if (arena.getSpawns().isEmpty() || arena.getLobby() == null)
         {

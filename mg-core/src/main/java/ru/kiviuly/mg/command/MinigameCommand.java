@@ -136,7 +136,12 @@ public class MinigameCommand implements TabExecutor
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args)
     {
         if (!(sender instanceof Player p)) {sender.sendMessage("Players only"); return true;}
-        if (args.length == 0) {new ArenaSelectMenu(plugin).open(p); return true;}
+        if (args.length == 0)
+        {
+            if (owner != null && owner.onEmptyCommand(p)) {return true;} // игра открыла своё меню
+            new ArenaSelectMenu(plugin).open(p);
+            return true;
+        }
         String sub = args[0].toLowerCase(Locale.ROOT);
 
         switch (sub)
