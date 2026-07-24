@@ -14,21 +14,21 @@
   1. Подсистемы (`RespawnBlocks`/`OfflineGuards`/`Themes`) — [DONE] косвенно: они
      держат `EscapeRules`, который уже переведён на матч.
   2. Правила: выпотрошить `GameSession`, добавить хуки — [DONE]
-  3. **Перецелить вызывающие — [TODO] ← ТЕКУЩИЙ ШАГ.** 16 ошибок в 5 файлах, см. `STATE.md`.
-     Что делать:
-     - `ArenaManager` (Escape): перестаёт создавать сессии и хранить `sessionByArena`;
-       вход игрока — через `core.arenas().join(p, arena)`. По сути класс схлопывается
-       до загрузки/сохранения арен, а потом удаляется целиком (кусок 4).
-     - `EscapeCommand`: `forceStart`/`adminStop` — убрать, это делает `/mg start|stop`
-       ядра. Фазы — через `match.phase()`.
-     - `GameListener`/`ProtectionListener` (Escape): ядро уже обслуживает смерть,
-       откат, защиту вне матча. Оставить только escape-специфику, остальное удалить.
-     - `ArenaSelectMenu` (Escape): скорее всего удалить — ядро даёт свой селектор.
-  4. **Снос и подключение — [TODO].** Удалить `ArenaManager`, `PlayerSnapshot`,
-     `StatsRepository`, `SetupMarkers`, `ArenaCheck`, дублирующие листенеры Escape.
-     Зарегистрировать `EscapeGame` в `MgCore`, команду выдать через `core.commandFor`,
-     право `esc.admin` (уже возвращается из `EscapeGame.adminPermission()`),
-     `plugin.yml` → `depend: [MgCore]` (уже есть).
+  3. **Перецелить вызывающие — [DONE].** Escape СОБИРАЕТСЯ на платформенном движке.
+     Сделано: `ArenaManager` Escape → тонкий фасад над `core.arenas()` (не создаёт
+     сессии, мостит `Match`→`EscapeRules`); `EscapeCommand` — на `plugin.arenas().leave/
+     stop/forceStart` и `match.phase()`; `EscapeGame` зарегистрирован в MgCore, команда
+     через `core.commandFor`; `ProtectionListener` удалён; `GameListener`/`ChatListener`
+     оставлены (игро-специфика). `.all().values()`→`.all()`, `EscapeRules.Phase`→`GamePhase`.
+  4. **Снос дубликатов и ревизия — [TODO] ← ТЕКУЩИЙ ШАГ.**
+     - Удалить: `player/PlayerSnapshot`, `arena/SetupMarkers`, `arena/ArenaCheck`,
+       `command/EscapeCommand` (команду ведёт `core.commandFor`). `arena/ArenaManager`
+       уже схлопнут в фасад — при желании убрать и его, переведя ~94 вызова на `core.arenas()`.
+     - Ревизия двойной обработки: escape `GameListener` и ядро оба слушают Bukkit-события;
+       проверить урон/еду/блоки — не гасят ли друг друга (смерть/выход/снапшоты уже сняты).
+     - Оффлайн-страж rejoin: у ядра фичи нет, сейчас только снапшот-восстановление ядра.
+     - Статистика Escape (`StatsRepository`, свои колонки) — перевести в общий `StatsService`
+       (нужны кастомные колонки в контракте) ИЛИ оставить своей осознанно.
 
 ## [TODO] После Escape
 
