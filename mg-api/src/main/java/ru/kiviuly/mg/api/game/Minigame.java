@@ -109,6 +109,14 @@ public abstract class Minigame
     public void onPlayerReconnect(Match m, Player p) {}
 
     /**
+     * Встроенный «страж выхода» (опционально). Верни {@link ExitGuardConfig}, чтобы движок
+     * САМ держал отключившихся живых игроков участниками матча на грейс-период, ставил
+     * болванчика и обрабатывал возврат/гибель/таймаут — без своего кода. {@code null} (дефолт)
+     * — фича выключена (тогда работают ручные хуки {@link #keepOnDisconnect} и др., если нужны).
+     */
+    public ExitGuardConfig exitGuard() {return null;}
+
+    /**
      * Матч полностью завершён и откачен — НОРМАЛЬНО или форс-стопом (/stop, reload,
      * remove, shutdown). Зовётся ядром в конце cleanup. Подчисти per-match ресурсы
      * игры (боссбары, задачи), которые {@link #onEnd} мог не покрыть.

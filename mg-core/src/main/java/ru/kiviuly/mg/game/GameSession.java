@@ -74,6 +74,8 @@ public class GameSession implements Match
     private final boolean restoreWorld;
     private final GameScoreboard scoreboard;
     private final GameBossBar bossBar;
+    /** Встроенный страж выхода (если игра включила через Minigame.exitGuard()); иначе null. */
+    private final ExitGuard exitGuard;
 
     public GameSession(MgCorePlugin plugin, Arena arena, Minigame game)
     {
@@ -84,7 +86,12 @@ public class GameSession implements Match
         this.restoreWorld = cfg.getBoolean("match.restore-world", true);
         this.scoreboard = cfg.getBoolean("hud.scoreboard", true) ? new GameScoreboard() : null;
         this.bossBar = cfg.getBoolean("hud.bossbar", true) ? new GameBossBar() : null;
+        var guardCfg = game.exitGuard();
+        this.exitGuard = guardCfg == null ? null : new ExitGuard(this, plugin, guardCfg);
     }
+
+    /** Встроенный страж выхода этого матча (или null, если игра его не включала). */
+    public ExitGuard exitGuard() {return exitGuard;}
 
     // ===== публичный API (для игр и слушателей) =====
 
@@ -450,10 +457,10 @@ public class GameSession implements Match
     {
         MatchPlayer mp = players.get(p.getUniqueId());
         if (mp == null) {return;}
-        if (phase == GamePhase.RUNNING && mp.isAlive() && game.keepOnDisconnect(this, p))
+        if (phase == GamePhase.RUNNING && mp.isAlive())
         {
-            game.onPlayerDisconnect(this, p);
-            return; // остаётся участником матча оффлайн — НЕ снимаем снапшот, НЕ убираем из ростера
+            if (exitGuard != null) {exitGuard.engage(p); return;} // встроенный страж ведёт всё сам
+            if (game.keepOnDisconnect(this, p)) {game.onPlayerDisconnect(this, p); return;} // ручной путь игры
         }
         removePlayer(p, false);
     }
@@ -466,9 +473,15 @@ public class GameSession implements Match
     {
         MatchPlayer mp = players.get(p.getUniqueId());
         if (mp == null) {return;}
-        if (!mp.isAlive()) {p.setGameMode(GameMode.SPECTATOR);} // выбыл, пока был оффлайн
+        if (!mp.isAlive())
+        {
+            // выбыл, пока был оффлайн (страж не дождался): спектейт + чистим дублирующий инвентарь
+            p.setGameMode(GameMode.SPECTATOR);
+            p.getInventory().clear();
+        }
         if (scoreboard != null) {scoreboard.update(this);}
         if (bossBar != null) {bossBar.add(p);}
+        if (exitGuard != null && exitGuard.resume(p)) {return;} // встроенный страж вернул игрока
         game.onPlayerReconnect(this, p);
     }
 
@@ -492,6 +505,7 @@ public class GameSession implements Match
     {
         stopTicker();
         if (endTask != null) {endTask.cancel(); endTask = null;}
+        if (exitGuard != null) {exitGuard.clear();} // снять болванчиков и таймеры стража
 
         // вернуть игроков
         for (UUID id : new ArrayList<>(players.keySet()))

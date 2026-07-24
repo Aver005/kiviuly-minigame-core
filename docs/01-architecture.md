@@ -195,8 +195,9 @@ public final class SkyWarsPlugin extends JavaPlugin {
 - **Вход/арены:** `canJoin(m, p)` (guard входа на всех путях), `onArenaCreated`/`onArenaRemoved`.
 - **Статистика:** `recordsOwnStats()` → `true`, если игра пишет свою статистику сама
   (ядро тогда не авто-пишет `recordMatch`, иначе задвоение).
-- **Оффлайн-возврат:** `keepOnDisconnect(m, p)` (оставить живого оффлайн-участником),
-  `onPlayerDisconnect`/`onPlayerReconnect` (страж/возврат). Ядро держит его в ростере и снапшот.
+- **Оффлайн-возврат:** `exitGuard()` — вернуть `ExitGuardConfig`, и движок сам ведёт встроенного
+  стража (болванчик в экипировке, грейс, возврат/гибель) — easy opt-in одной строкой. Либо ручной путь:
+  `keepOnDisconnect(m, p)` + `onPlayerDisconnect`/`onPlayerReconnect` (для game-специфики, как respawn-блоки Escape).
 - **Лобби-PvP:** `allowLobbyPvp`/`onLobbyAttack` (разминки). **Reload:** `onReload`.
 
 ## Инварианты (обещания платформы)

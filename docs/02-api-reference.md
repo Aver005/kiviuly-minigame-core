@@ -74,9 +74,14 @@ core.register(new MyGame(this, core));
 | `statsLines(Player, StatsService.Row)` | доп-строки `/<cmd> stats` (игро-счётчики) | пусто |
 | `recordsOwnStats()` | игра пишет статистику сама → ядро не авто-пишет `recordMatch` | `false` |
 | `canJoin(Match, Player)` | guard входа (все пути); `false` = запретить | `true` |
-| `keepOnDisconnect(Match, Player)` | оставить живого оффлайн-участником при дисконнекте | `false` |
+| `exitGuard()` | **встроенный** страж выхода: верни `ExitGuardConfig` — движок ведёт оффлайн-возврат сам | `null` (выкл) |
+| `keepOnDisconnect(Match, Player)` | ручной путь: оставить живого оффлайн-участником | `false` |
 | `onPlayerDisconnect(Match, Player)` | оставлен оффлайн — поставить стража/пометку | no-op |
 | `onPlayerReconnect(Match, Player)` | вернулся в идущий матч — вернуть в игру | no-op |
+
+> **Оффлайн-возврат, easy-путь:** `@Override public ExitGuardConfig exitGuard() { return ExitGuardConfig.standard(90); }`
+> — 90с грейс, зомби-болванчик в экипировке, убийство болванчика = гибель (кредит убийце), лут падает.
+> `ExitGuardConfig.graceOnly(n)` — без болванчика. Для богатой логики (как respawn-блоки Escape) — ручные хуки выше.
 | `onReload()` | `/<cmd> reload` | no-op |
 | `onArenaCreated(Arena)` / `onArenaRemoved(String)` | арена создана/удалена | no-op |
 

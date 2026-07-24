@@ -1,9 +1,13 @@
 package ru.kiviuly.mg.listener;
 
+import java.util.UUID;
+
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDeathEvent;
+import ru.kiviuly.mg.api.arena.Arena;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -127,6 +131,22 @@ public class GameListener implements Listener
         else
         {
             e.setCancelled(true);
+        }
+    }
+
+    /** Смерть болванчика встроенного стража выхода = заочная гибель его владельца. */
+    @EventHandler(ignoreCancelled = true)
+    public void onEntityDeath(EntityDeathEvent e)
+    {
+        UUID id = e.getEntity().getUniqueId();
+        for (Arena arena : plugin.arenas().all())
+        {
+            GameSession s = (GameSession) arena.getSession();
+            if (s == null || s.exitGuard() == null || !s.exitGuard().ownsEntity(id)) {continue;}
+            e.getDrops().clear();
+            e.setDroppedExp(0);
+            s.exitGuard().onStandInDeath(id, e.getEntity().getKiller());
+            return;
         }
     }
 
