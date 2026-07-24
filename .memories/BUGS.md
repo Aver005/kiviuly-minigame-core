@@ -36,6 +36,12 @@
 
 ## RESOLVED
 
+- ~~Escape-выбывание не сообщалось ядру → матч не завершался~~ (2026-07-24) — `isPlaying`/`aliveCount`
+  читают ядровый `MatchPlayer.isAlive()`, а обычная смерть (`finishElimination`) и оффлайн-таймаут
+  (`eliminateOffline`) `match.eliminate` не звали → выбывшие «живы», `defaultResult` не срабатывает.
+  Добавлен тихий `Match.eliminate(UUID)` (без broadcast движка, работает и для ОФФЛАЙН-игрока),
+  escape-пути переведены на него; чат-переход делает хук `onEliminated` (дубль снят), спектейт на
+  reconnect для не-живых. Оффлайн-выбывший остаётся в ростере спектатором — cleanup вернёт снапшот.
 - ~~Смерть в Escape не роняла лут и не восстанавливала HP~~ (2026-07-24) — `dropInventory`+
   `setHealth(20)` жили в escape-`GameListener.onDamage`, который стал мёртв (ядро гасит
   летальный урон на NORMAL раньше escape-HIGH и ведёт смерть через хук `onLethalDamage`→

@@ -89,6 +89,26 @@ public abstract class Minigame
     public void onPlayerRemoved(Match m, UUID id) {}
 
     /**
+     * Игрок отключился во время идущего матча (ещё живой). Верни {@code true}, чтобы
+     * движок ОСТАВИЛ его участником матча оффлайн (игра сама ведёт грейс/стража и возврат);
+     * {@code false} — движок убирает его как обычно. По умолчанию {@code false}.
+     */
+    public boolean keepOnDisconnect(Match m, Player p) {return false;}
+
+    /**
+     * Игрок отключился и оставлен в матче ({@link #keepOnDisconnect} вернул {@code true}):
+     * момент поставить стража/пометку. Ростер и UI движок сохраняет за игроком.
+     */
+    public void onPlayerDisconnect(Match m, Player p) {}
+
+    /**
+     * Игрок переподключился, оставаясь участником идущего матча: движок уже вернул ему
+     * HUD, здесь игра возвращает его в игру (страж, инвентарь, позиция). {@code p} —
+     * заново вошедший игрок.
+     */
+    public void onPlayerReconnect(Match m, Player p) {}
+
+    /**
      * Матч полностью завершён и откачен — НОРМАЛЬНО или форс-стопом (/stop, reload,
      * remove, shutdown). Зовётся ядром в конце cleanup. Подчисти per-match ресурсы
      * игры (боссбары, задачи), которые {@link #onEnd} мог не покрыть.

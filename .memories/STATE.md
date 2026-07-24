@@ -63,7 +63,11 @@
    `onEmptyCommand(p)` → `/escape` без арг открывает escape-меню; `canJoin(arena,p)` → busy-проверка
    входа на ВСЕХ путях; escape-лог вернулся под `/escape esclog` (ядровый лог — `/escape debuglog`).
    **Остаётся только** бедный `/escape stats` (4 строки vs 12) — чинится вместе со сквозной статистикой (п.4).
-3. **Оффлайн-страж rejoin** — фичи «вернуться в идущий матч» у ядра нет; сейчас только снапшот-восстановление.
+3. **Оффлайн-страж rejoin — ГОТОВ** (2026-07-24): 3 аддитивных хука ядра `keepOnDisconnect`/
+   `onPlayerDisconnect`/`onPlayerReconnect`; `GameSession.onDisconnect/onReconnect`; `GameListener`
+   quit→onDisconnect, join→onReconnect. `EscapeGame` подключил готовые `OfflineGuards` (были написаны,
+   но осиротели при миграции). Заодно устранён критбаг выбывания (тихий `Match.eliminate(UUID)` — см. BUGS
+   RESOLVED): и обычная смерть, и оффлайн-таймаут теперь метят ядровый alive → матч завершается.
 4. **Статистика — СВЕДЕНА в общий `StatsService`** (2026-07-24, Design B «generic-счётчики»): контракт хранит
    произвольные именованные счётчики (таблица `stat_counters` uuid+stat→value, ники в `stat_players`),
    `Row` несёт Map + `counter(k)`; добавлены `set`/`max`. Ядровый бэкенд мигрирует старую широкую `stats`.

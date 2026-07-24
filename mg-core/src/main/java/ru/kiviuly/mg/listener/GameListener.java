@@ -134,17 +134,19 @@ public class GameListener implements Listener
     public void onQuit(PlayerQuitEvent e)
     {
         GameSession s = plugin.arenas().sessionOf(e.getPlayer());
-        if (s != null) {s.removePlayer(e.getPlayer(), false);}
+        if (s != null) {s.onDisconnect(e.getPlayer());}
     }
 
-    /** Восстановление зависшего снапшота (краш/нечистая остановка во время матча). */
+    /**
+     * Вход игрока: остался участником идущего матча (оффлайн-возврат) — вернуть в игру;
+     * иначе восстановить зависший снапшот (краш/нечистая остановка во время матча).
+     */
     @EventHandler
     public void onJoin(PlayerJoinEvent e)
     {
         Player p = e.getPlayer();
-        if (!plugin.arenas().inGame(p) && PlayerSnapshot.exists(plugin, p.getUniqueId()))
-        {
-            PlayerSnapshot.restore(plugin, p);
-        }
+        GameSession s = plugin.arenas().sessionOf(p);
+        if (s != null) {s.onReconnect(p); return;}
+        if (PlayerSnapshot.exists(plugin, p.getUniqueId())) {PlayerSnapshot.restore(plugin, p);}
     }
 }

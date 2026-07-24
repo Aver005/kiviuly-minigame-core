@@ -343,6 +343,27 @@ public class GameSession implements Match
         }
     }
 
+    /**
+     * Тихое выбывание по UUID (игра сама объявляет смерть; работает и для ОФФЛАЙН-игрока):
+     * alive=false, спектейт-режим если онлайн, хук {@code onPlayerEliminated}, проверка конца.
+     * Без broadcast движка. Игрок остаётся в ростере (спектатор) — cleanup вернёт его в конце.
+     */
+    @Override public void eliminate(UUID id)
+    {
+        MatchPlayer mp = players.get(id);
+        if (mp == null || !mp.isAlive()) {return;}
+        mp.setAlive(false);
+        Player p = Bukkit.getPlayer(id);
+        if (p != null && p.isOnline()) {p.setGameMode(GameMode.SPECTATOR);}
+        game.onPlayerEliminated(this, mp);
+        DebugLog.log(Cat.SESSION, "eliminate-uuid arena=%s player=%s alive=%d", arena.getId(), mp.getName(), aliveCount());
+        if (phase == GamePhase.RUNNING)
+        {
+            MatchResult result = game.checkResult(this);
+            if (result != null) {endMatch(result);}
+        }
+    }
+
     private void endMatch(MatchResult result)
     {
         if (phase == GamePhase.ENDING) {return;}
@@ -418,6 +439,37 @@ public class GameSession implements Match
             if (result != null) {endMatch(result); return;}
         }
         if (players.isEmpty() && phase != GamePhase.ENDING) {forceCleanup();}
+    }
+
+    /**
+     * Игрок отключился от сервера (из {@code onQuit}). Живого участника идущего матча
+     * игра может оставить оффлайн ({@link Minigame#keepOnDisconnect}) — тогда он остаётся
+     * в ростере и HUD за ним сохраняется; иначе убираем как обычный выход.
+     */
+    public void onDisconnect(Player p)
+    {
+        MatchPlayer mp = players.get(p.getUniqueId());
+        if (mp == null) {return;}
+        if (phase == GamePhase.RUNNING && mp.isAlive() && game.keepOnDisconnect(this, p))
+        {
+            game.onPlayerDisconnect(this, p);
+            return; // остаётся участником матча оффлайн — НЕ снимаем снапшот, НЕ убираем из ростера
+        }
+        removePlayer(p, false);
+    }
+
+    /**
+     * Игрок переподключился, оставаясь участником матча (его оставили оффлайн). Вернуть
+     * HUD и отдать игре ({@link Minigame#onPlayerReconnect}) — она вернёт его в игру.
+     */
+    public void onReconnect(Player p)
+    {
+        MatchPlayer mp = players.get(p.getUniqueId());
+        if (mp == null) {return;}
+        if (!mp.isAlive()) {p.setGameMode(GameMode.SPECTATOR);} // выбыл, пока был оффлайн
+        if (scoreboard != null) {scoreboard.update(this);}
+        if (bossBar != null) {bossBar.add(p);}
+        game.onPlayerReconnect(this, p);
     }
 
     /** Досрочный старт админом. false — некого/уже идёт. */
